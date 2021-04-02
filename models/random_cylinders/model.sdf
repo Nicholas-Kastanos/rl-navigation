@@ -92,32 +92,23 @@
       <pose frame=''>2.075 0 0 0 -0 1.5708</pose>
     </link>
 
-    
+    <population name="cylinder_population1">
+      <model name="cylinder">
+        <include>
+          <static>true</static>
+          <uri>model://cylinder</uri>
+        </include>
+      </model>
+      <pose>0 0 0 0 0 0</pose>
+      <box>
+        <size>4 4 0.01</size>
+      </box>
+      <model_count>10</model_count>
+      <distribution>
+        <type>random</type>
+      </distribution>
+    </population>
 
-    <link name='Cylinder_1'>
-      <collision name='Cylinder_1_Collision'>
-        <geometry>
-          <cylinder>
-            <radius>0.3</radius>
-            <length>0.5</length>
-          </cylinder>
-        </geometry>
-        <pose frame=''>0 0 0.25 0 -0 0</pose>
-      </collision>
-      <visual name='Cylinder_1_Visual'>
-        <pose frame=''>0 0 0.25 0 -0 0</pose>
-        <geometry>
-          <cylinder>
-            <radius>0.3</radius>
-            <length>0.5</length>
-          </cylinder>
-        </geometry>
-        <material>
-          <ambient>1 1 1 1</ambient>
-        </material>
-      </visual>
-      <pose frame=''>0.3 0.2 0 0 0 0</pose>
-    </link>
     <static>1</static>
   </model>
 </sdf>
