@@ -33,8 +33,25 @@
 
     <!-- Load world -->
     <include>
-      <uri>model://random_cylinders</uri>
+      <uri>model://box_walls</uri>
     </include>
+
+    <population name="cylinder_population">
+      <model name="cylinder">
+        <include>
+          <static>true</static>
+          <uri>model://cylinder</uri>
+        </include>
+      </model>
+      <pose>0 0 0 0 0 0</pose>
+      <box>
+        <size>4 4 0.01</size>
+      </box>
+      <model_count>10</model_count>
+      <distribution>
+        <type>random</type>
+      </distribution>
+    </population>
 
     <scene>
       <ambient>0.4 0.4 0.4 1</ambient>
