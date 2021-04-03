@@ -2,3 +2,15 @@
 	path = openai_ros
 	url = https://bitbucket.org/theconstructcore/openai_ros.git
 	branch = kinetic-devel
+[submodule "turtlebot3_msgs"]
+	path = turtlebot3_msgs
+	url = https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
+	branch = kinetic-devel
+[submodule "turtlebot3"]
+	path = turtlebot3
+	url = https://github.com/ROBOTIS-GIT/turtlebot3.git
+	branch = kinetic-devel
+[submodule "turtlebot3_simulations"]
+	path = turtlebot3_simulations
+	url = https://github.com/ROBOTIS-GIT/turtlebot3_simulations.git
+	branch = kinetic-devel
