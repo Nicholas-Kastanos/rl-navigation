@@ -1,3 +1,4 @@
 [submodule "openai_ros"]
 	path = openai_ros
 	url = https://bitbucket.org/theconstructcore/openai_ros.git
+	branch = kinetic-devel
