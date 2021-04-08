@@ -47,7 +47,7 @@
       <box>
         <size>4 4 0.01</size>
       </box>
-      <model_count>10</model_count>
+      <model_count>1</model_count>
       <distribution>
         <type>random</type>
       </distribution>
