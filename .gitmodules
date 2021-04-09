@@ -14,6 +14,3 @@
 	path = turtlebot3_simulations
 	url = https://github.com/ROBOTIS-GIT/turtlebot3_simulations.git
 	branch = kinetic-devel
-[submodule "gym-envs"]
-	path = gym-envs
-	url = https://github.com/Nicholas-Kastanos/gym-envs.git
