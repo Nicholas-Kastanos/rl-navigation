@@ -22,9 +22,9 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
                                                " DOESNT exist, execute: mkdir -p " + ros_ws_abspath + \
                                                "/src;cd " + ros_ws_abspath + ";catkin_make"
 
-        ROSLauncher(rospackage_name="miniproject",
-                    launch_file_name="empty_box.launch",
-                    ros_ws_abspath=ros_ws_abspath)
+        # ROSLauncher(rospackage_name="miniproject",
+        #             launch_file_name="empty_box.launch",
+        #             ros_ws_abspath=ros_ws_abspath)
 
         # Load Params from the desired Yaml file
         LoadYamlFileParamsTest(rospackage_name="tb3_openai_example",
@@ -84,11 +84,18 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
         # Rewards
-        self.forwards_reward = rospy.get_param("/turtlebot3/forwards_reward")
-        self.turn_reward = rospy.get_param("/turtlebot3/turn_reward")
-        self.end_episode_points = rospy.get_param("/turtlebot3/end_episode_points")
+        # self.forwards_reward = rospy.get_param("/turtlebot3/forwards_reward")
+        # self.turn_reward = rospy.get_param("/turtlebot3/turn_reward")
+        # self.end_episode_points = rospy.get_param("/turtlebot3/end_episode_points")
+
+        self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
+
+        self.goal = [0, 0, 0]
 
         self.cumulated_steps = 0.0
+
+    def set_goal(self, x, y, yaw):
+        self.goal = [x, y, yaw]
 
 
     def _set_init_pose(self):
@@ -156,10 +163,20 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
                                                                         self.new_ranges
                                                                         )
 
+        odom = self.get_odom()
+        discretized_observations.append(odom.pose.pose.position.x)
+        discretized_observations.append(odom.pose.pose.position.y)
+        discretized_observations.append(odom.pose.pose.orientation)
+
+        discretized_observations += self.goal
+
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
         return discretized_observations
 
+
+    def _is_at_goal(self):
+        pass
 
     def _is_done(self, observations):
 
@@ -183,10 +200,11 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
     def _compute_reward(self, observations, done):
 
         if not done:
-            if self.last_action == "FORWARDS":
-                reward = self.forwards_reward
-            else:
-                reward = self.turn_reward
+            # if self.last_action == "FORWARDS":
+            #     reward = self.forwards_reward
+            # else:
+            #     reward = self.turn_reward
+            reward = self.step_reward
         else:
             reward = -1*self.end_episode_points
 

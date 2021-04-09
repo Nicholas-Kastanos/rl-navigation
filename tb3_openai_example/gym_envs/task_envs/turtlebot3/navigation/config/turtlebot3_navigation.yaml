@@ -1,7 +1,7 @@
 turtlebot3: #namespace
 
     n_actions: 3 # We have 3 actions, Forwards,TurnLeft,TurnRight
-    n_observations: 6 # We have 6 different observations
+    n_observations: 12 # We have 6 different lidar observations + 3 odom + 3 goal pose
 
     speed_step: 1.0 # Time to wait in the reset phases
 
@@ -20,5 +20,7 @@ turtlebot3: #namespace
     forwards_reward: 5 # Points Given to go forwards
     turn_reward: 1 # Points Given to turn as action
     end_episode_points: 200 # Points given when ending an episode
+    rewards:
+        step: -1
     
 

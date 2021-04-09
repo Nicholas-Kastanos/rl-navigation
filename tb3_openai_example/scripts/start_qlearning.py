@@ -55,6 +55,10 @@ if __name__ == '__main__':
 
     running_step = rospy.get_param("/turtlebot3/running_step")
 
+    x = rospy.get_param("/turtlebot3/goal/x")
+    y = rospy.get_param("/turtlebot3/goal/y")
+    yaw = rospy.get_param("/turtlebot3/goal/yaw")
+
     # Initialises the algorithm that we are going to use for learning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
                            alpha=Alpha, gamma=Gamma, epsilon=Epsilon)
@@ -66,6 +70,8 @@ if __name__ == '__main__':
     # Starts the main training loop: the one about the episodes to do
     for x in range(nepisodes):
         rospy.logdebug("############### START EPISODE=>" + str(x))
+
+        env.set_goal(x, y, yaw)
 
         cumulated_reward = 0
         done = False
