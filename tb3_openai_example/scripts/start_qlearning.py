@@ -9,21 +9,13 @@ from gym import wrappers
 import rospy
 import rospkg
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
-from tb3_openai_example.task_envs.myturtlebot3_world import register_world as RegisterTB3World
+import gym_envs
 
 def _launch_custom_env(task_and_robot_environment_name: str):
     rospy.logwarn("Env: {} will be imported".format(
         task_and_robot_environment_name))
-    result = False
-    if task_and_robot_environment_name == 'MyTurtleBot3World-v0':
-        result = RegisterTB3World()
-    if result:
-        rospy.logwarn("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
-        env = gym.make(task_and_robot_environment_name)
-    else:
-        rospy.logwarn("Something Went wrong in the register")
-        env = None
-
+    rospy.logwarn("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
+    env = gym.make(task_and_robot_environment_name)
     return env
 
 
