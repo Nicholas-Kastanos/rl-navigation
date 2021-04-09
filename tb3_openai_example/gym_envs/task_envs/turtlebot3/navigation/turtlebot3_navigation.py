@@ -28,8 +28,8 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
 
         # Load Params from the desired Yaml file
         LoadYamlFileParamsTest(rospackage_name="tb3_openai_example",
-                               rel_path_from_package_to_file="task_envs/config",
-                               yaml_file_name="turtlebot3_world.yaml")
+                               rel_path_from_package_to_file="gym_envs/task_envs/turtlebot3/navigation/config",
+                               yaml_file_name="turtlebot3_navigation.yaml")
 
 
         # Here we will add any init functions prior to starting the MyRobotEnv
