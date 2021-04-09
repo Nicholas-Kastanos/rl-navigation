@@ -12,3 +12,8 @@ turtlebot3: #namespace
     nepisodes: 500
     nsteps: 1000
     running_step: 0.06 # Time for each step
+
+    goal:
+        x: 0
+        y: 0
+        yaw: 0
