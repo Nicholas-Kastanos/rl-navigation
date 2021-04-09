@@ -9,6 +9,13 @@ from openai_ros.openai_ros_common import ROSLauncher
 import os
 
 
+register(
+    id='MyTurtleBot3World-v0',
+    entry_point='tb3_openai_example.task_envs:MyTurtleBot3WorldEnv',
+    max_episode_steps=10000
+)
+
+
 class MyTurtleBot3WorldEnv(turtlebot3_env.TurtleBot3Env):
     def __init__(self):
         """

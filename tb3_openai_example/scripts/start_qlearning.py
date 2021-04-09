@@ -9,6 +9,22 @@ from gym import wrappers
 import rospy
 import rospkg
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
+from tb3_openai_example.task_envs.myturtlebot3_world import register_world as RegisterTB3World
+
+def _launch_custom_env(task_and_robot_environment_name: str):
+    rospy.logwarn("Env: {} will be imported".format(
+        task_and_robot_environment_name))
+    result = False
+    if task_and_robot_environment_name == 'MyTurtleBot3World-v0':
+        result = RegisterTB3World()
+    if result:
+        rospy.logwarn("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
+        env = gym.make(task_and_robot_environment_name)
+    else:
+        rospy.logwarn("Something Went wrong in the register")
+        env = None
+
+    return env
 
 
 if __name__ == '__main__':
@@ -18,8 +34,10 @@ if __name__ == '__main__':
     # Init OpenAI_ROS ENV
     task_and_robot_environment_name = rospy.get_param(
         '/turtlebot3/task_and_robot_environment_name')
-    env = StartOpenAI_ROS_Environment(
-        task_and_robot_environment_name)
+    
+    # env = StartOpenAI_ROS_Environment(task_and_robot_environment_name)
+    env = _launch_custom_env(task_and_robot_environment_name)
+
     # Create the Gym environment
     rospy.loginfo("Gym environment done")
     rospy.loginfo("Starting Learning")
