@@ -3,7 +3,7 @@ import numpy as np
 from gym import spaces
 from openai_ros.robot_envs import turtlebot3_env
 from geometry_msgs.msg import Vector3
-from gym_envs.task_envs import LoadYamlFileParams
+from ...task_commons import LoadYamlFileParams, pose_to_euler
 from openai_ros.openai_ros_common import ROSLauncher
 import os
 
@@ -148,9 +148,12 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
 
         rospy.logdebug("END Set Action ==>"+str(action))
 
+
+
+
     def _get_pose(self):
         odom = self.get_odom()
-        return [odom.pose.pose.position.x, odom.pose.pose.position.y, np.mod(odom.pose.pose.orientation, 2*np.pi)]
+        return pose_to_euler(odom.pose)
 
     def _get_obs(self):
         """

@@ -24,6 +24,7 @@ diagnostic-updater==1.9.3
 distro==1.5.0
 docutils==0.17
 dynamic-reconfigure==1.5.50
+empy==3.3.4
 flatbuffers==1.12
 future==0.18.2
 gast==0.3.3
@@ -42,6 +43,7 @@ google-auth-oauthlib==0.4.4
 google-pasta==0.2.0
 grpcio==1.32.0
 gym==0.18.0
+-e git+https://github.com/Nicholas-Kastanos/rl-navigation.git@ba85adb9cd4c42068f84bb2de0e96b2a6b94335b#egg=gym_envs&subdirectory=gym_envs
 h5py==2.10.0
 idna==2.10
 image-geometry==1.12.8
@@ -63,6 +65,7 @@ pluginlib==1.11.3
 pr2-power-board==1.1.7
 protobuf==3.15.6
 py-trees==0.5.12
+pyaml==20.4.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pyglet==1.5.0
