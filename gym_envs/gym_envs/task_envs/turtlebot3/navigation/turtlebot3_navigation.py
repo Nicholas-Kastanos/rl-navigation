@@ -1,9 +1,9 @@
 import rospy
-import numpy
+import numpy as np
 from gym import spaces
 from openai_ros.robot_envs import turtlebot3_env
 from geometry_msgs.msg import Vector3
-from openai_ros.task_envs.task_commons import LoadYamlFileParamsTest
+from gym_envs.task_envs import LoadYamlFileParams
 from openai_ros.openai_ros_common import ROSLauncher
 import os
 
@@ -27,9 +27,8 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         #             ros_ws_abspath=ros_ws_abspath)
 
         # Load Params from the desired Yaml file
-        LoadYamlFileParamsTest(rospackage_name="tb3_openai_example",
-                               rel_path_from_package_to_file="gym_envs/task_envs/turtlebot3/navigation/config",
-                               yaml_file_name="turtlebot3_navigation.yaml")
+        yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'turtlebot3_navigation.yaml')
+        LoadYamlFileParams(yaml_file)
 
 
         # Here we will add any init functions prior to starting the MyRobotEnv
@@ -40,7 +39,7 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         self.action_space = spaces.Discrete(number_actions)
 
         # We set the reward range, which is not compulsory but here we do it.
-        self.reward_range = (-numpy.inf, numpy.inf)
+        self.reward_range = (-np.inf, np.inf)
 
 
         #number_observations = rospy.get_param('/turtlebot3/n_observations')
@@ -74,8 +73,8 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         # In the discretization method.
         laser_scan = self.get_laser_scan()
         num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
-        high = numpy.full((num_laser_readings), self.max_laser_value)
-        low = numpy.full((num_laser_readings), self.min_laser_value)
+        high = np.full((num_laser_readings), self.max_laser_value)
+        low = np.full((num_laser_readings), self.min_laser_value)
 
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
@@ -90,12 +89,13 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
 
         self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
 
+        self.goal_distance_tolerance = rospy.get_param("/turtlebot3/goal/tolerance")
         self.goal = [0, 0, 0]
 
         self.cumulated_steps = 0.0
 
     def set_goal(self, x, y, yaw):
-        self.goal = [x, y, yaw]
+        self.goal = [x, y, np.mod(yaw, 2*np.pi)]
 
 
     def _set_init_pose(self):
@@ -148,6 +148,10 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
 
         rospy.logdebug("END Set Action ==>"+str(action))
 
+    def _get_pose(self):
+        odom = self.get_odom()
+        return [odom.pose.pose.position.x, odom.pose.pose.position.y, np.mod(odom.pose.pose.orientation, 2*np.pi)]
+
     def _get_obs(self):
         """
         Here we define what sensor data defines our robots observations
@@ -163,20 +167,23 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
                                                                         self.new_ranges
                                                                         )
 
-        odom = self.get_odom()
-        discretized_observations.append(odom.pose.pose.position.x)
-        discretized_observations.append(odom.pose.pose.position.y)
-        discretized_observations.append(odom.pose.pose.orientation)
-
+        discretized_observations += self._get_pose()
         discretized_observations += self.goal
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
         return discretized_observations
 
-
     def _is_at_goal(self):
-        pass
+        def _get_distance(p1, p2):
+            if isinstance(p1, list):
+                p1 = np.array(p1)
+            if isinstance(p2, list):
+                p2 = np.array(p2)
+            return np.linalg.norm(p2-p1)
+        if _get_distance(self._get_pose(), self.goal) < self.goal_distance_tolerance:
+            return True
+        return False
 
     def _is_done(self, observations):
 
@@ -236,9 +243,9 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
 
         for i, item in enumerate(data.ranges):
             if (i%mod==0):
-                if item == float ('Inf') or numpy.isinf(item):
+                if item == float ('Inf') or np.isinf(item):
                     discretized_ranges.append(self.max_laser_value)
-                elif numpy.isnan(item):
+                elif np.isnan(item):
                     discretized_ranges.append(self.min_laser_value)
                 else:
                     discretized_ranges.append(int(item))
@@ -260,8 +267,7 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         a crash
         :return:
         """
-        contact_force_np = numpy.array((vector.x, vector.y, vector.z))
-        force_magnitude = numpy.linalg.norm(contact_force_np)
+        contact_force_np = np.array((vector.x, vector.y, vector.z))
+        force_magnitude = np.linalg.norm(contact_force_np)
 
         return force_magnitude
-
