@@ -151,9 +151,9 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
 
 
 
-    def _get_pose(self):
+    def _get_current_odom_pose(self):
         odom = self.get_odom()
-        return pose_to_euler(odom.pose)
+        return pose_to_euler(odom.pose.pose)
 
     def _get_obs(self):
         """
@@ -170,7 +170,7 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
                                                                         self.new_ranges
                                                                         )
 
-        discretized_observations += self._get_pose()
+        discretized_observations += self._get_current_odom_pose()
         discretized_observations += self.goal
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
@@ -184,25 +184,29 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
             if isinstance(p2, list):
                 p2 = np.array(p2)
             return np.linalg.norm(p2-p1)
-        if _get_distance(self._get_pose(), self.goal) < self.goal_distance_tolerance:
+        if _get_distance(self._get_current_odom_pose(), self.goal) < self.goal_distance_tolerance:
             return True
         return False
 
     def _is_done(self, observations):
 
         if self._episode_done:
-            rospy.logerr("TurtleBot2 is Too Close to wall==>")
+            rospy.logerr("TurtleBot3 is already at the destination==>")
         else:
-            rospy.logwarn("TurtleBot2 is NOT close to a wall ==>")
+            rospy.logwarn("TurtleBot3 is not at the destination==>")
 
-        # Now we check if it has crashed based on the imu
-        imu_data = self.get_imu()
-        linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
-        if linear_acceleration_magnitude > self.max_linear_aceleration:
-            rospy.logerr("TurtleBot2 Crashed==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
+        if self._is_at_goal():
             self._episode_done = True
-        else:
-            rospy.logerr("DIDNT crash TurtleBot2 ==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
+        
+
+        # # Now we check if it has crashed based on the imu
+        # imu_data = self.get_imu()
+        # linear_acceleration_magnitude = self.get_vector_magnitude(imu_data.linear_acceleration)
+        # if linear_acceleration_magnitude > self.max_linear_aceleration:
+        #     rospy.logerr("TurtleBot2 Crashed==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
+        #     self._episode_done = True
+        # else:
+        #     rospy.logerr("DIDNT crash TurtleBot2 ==>"+str(linear_acceleration_magnitude)+">"+str(self.max_linear_aceleration))
 
 
         return self._episode_done
@@ -216,7 +220,7 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
             #     reward = self.turn_reward
             reward = self.step_reward
         else:
-            reward = -1*self.end_episode_points
+            reward = 0
 
 
         rospy.logdebug("reward=" + str(reward))
