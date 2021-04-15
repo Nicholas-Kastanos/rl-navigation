@@ -1,6 +1,7 @@
 import rospy
 import numpy as np
 from gym import spaces
+from ....robot_envs import TurtleBot3Env
 from openai_ros.robot_envs import turtlebot3_env
 from geometry_msgs.msg import Vector3
 from ...task_commons import LoadYamlFileParams, pose_to_euler
