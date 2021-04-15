@@ -12,7 +12,7 @@ turtlebot3: #namespace
     init_linear_turn_speed: 0.0 # Initial angular speed in shich we start each episode
     
     new_ranges: 5 # How many laser readings we jump in each observation reading, the bigger the less laser resolution
-    min_range: 0.2 # Minimum meters below wich we consider we have crashed
+    min_range: 0.12 # Minimum meters below wich we consider we have crashed
     max_laser_value: 3.5 # Value considered Ok, no wall
     min_laser_value: 0 # Value considered there is an obstacle or crashed
     max_linear_aceleration: 5.0 # Linear acceleration value in which we consider Turtlebot 3 has crashed into something

@@ -7,6 +7,8 @@ from geometry_msgs.msg import Vector3
 from ...task_commons import LoadYamlFileParams, pose_to_euler
 from openai_ros.openai_ros_common import ROSLauncher
 import os
+from geometry_msgs.msg import Pose
+from tf.transformations import quaternion_from_euler
 
 
 class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
@@ -22,10 +24,6 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         assert os.path.exists(ros_ws_abspath), "The Simulation ROS Workspace path " + ros_ws_abspath + \
                                                " DOESNT exist, execute: mkdir -p " + ros_ws_abspath + \
                                                "/src;cd " + ros_ws_abspath + ";catkin_make"
-
-        # ROSLauncher(rospackage_name="miniproject",
-        #             launch_file_name="empty_box.launch",
-        #             ros_ws_abspath=ros_ws_abspath)
 
         # Load Params from the desired Yaml file
         yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'turtlebot3_navigation.yaml')
@@ -84,12 +82,9 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
         # Rewards
-        # self.forwards_reward = rospy.get_param("/turtlebot3/forwards_reward")
-        # self.turn_reward = rospy.get_param("/turtlebot3/turn_reward")
-        # self.end_episode_points = rospy.get_param("/turtlebot3/end_episode_points")
-
         self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
 
+        # Goal Info
         self.goal_distance_tolerance = rospy.get_param("/turtlebot3/goal/tolerance")
         self.goal = [0, 0, 0]
 
@@ -102,6 +97,12 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
     def _set_init_pose(self):
         """Sets the Robot in its init pose
         """
+        pose = Pose()
+        pose.position.x = 1
+        pose.position.y = 1
+        pose.orientation = quaternion_from_euler([0, 0, np.pi])
+
+        self._set_model_state("turtlebot3", pose=pose)
         self.move_base( self.init_linear_forward_speed,
                         self.init_linear_turn_speed,
                         epsilon=0.05,
