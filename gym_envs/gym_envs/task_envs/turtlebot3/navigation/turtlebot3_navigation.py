@@ -2,16 +2,15 @@ import rospy
 import numpy as np
 from gym import spaces
 from ....robot_envs import TurtleBot3Env
-from openai_ros.robot_envs import turtlebot3_env
 from geometry_msgs.msg import Vector3
 from ...task_commons import LoadYamlFileParams, pose_to_euler
 from openai_ros.openai_ros_common import ROSLauncher
 import os
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Twist
 from tf.transformations import quaternion_from_euler
 
 
-class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
+class TurtleBot3NavigationEnv(TurtleBot3Env):
     def __init__(self):
         """
         This Task Env is designed for having the TurtleBot3 in the turtlebot3 world
@@ -97,12 +96,6 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
     def _set_init_pose(self):
         """Sets the Robot in its init pose
         """
-        pose = Pose()
-        pose.position.x = 1
-        pose.position.y = 1
-        pose.orientation = quaternion_from_euler([0, 0, np.pi])
-
-        self._set_model_state("turtlebot3", pose=pose)
         self.move_base( self.init_linear_forward_speed,
                         self.init_linear_turn_speed,
                         epsilon=0.05,
@@ -121,6 +114,13 @@ class TurtleBot3NavigationEnv(turtlebot3_env.TurtleBot3Env):
         self.cumulated_reward = 0.0
         # Set to false Done, because its calculated asyncronously
         self._episode_done = False
+
+        # Move robot to new position. Must be done here and not _set_init_pose becuase the world is reset after that method is called.
+        pose = Pose()
+        pose.position.x = 1
+        pose.position.y = 1
+        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w  = quaternion_from_euler(0, 0, np.pi)
+        self._set_model_state("turtlebot3_burger", pose=pose, twist=Twist())
 
 
     def _set_action(self, action):
