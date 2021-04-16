@@ -68,8 +68,8 @@ if __name__ == '__main__':
     highest_reward = 0
 
     # Starts the main training loop: the one about the episodes to do
-    for x in range(nepisodes):
-        rospy.logdebug("############### START EPISODE=>" + str(x))
+    for ep in range(nepisodes):
+        rospy.logdebug("############### START EPISODE=>" + str(ep))
 
         env.set_goal(x, y, yaw)
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         # env.render()
         # for each episode, we test the robot for nsteps
         for i in range(nsteps):
-            rospy.logwarn("############### Start Step=>" + str(i))
+            # rospy.logwarn("############### Start Step=>" + str(i))
             # Pick an action based on the current state
             action = qlearn.chooseAction(state)
             rospy.logdebug("Next action is:%d", action)
@@ -108,6 +108,10 @@ if __name__ == '__main__':
             rospy.logdebug("# State in which we will start next step=>" + str(nextState))
             qlearn.learn(state, action, reward, nextState)
 
+            if i == nsteps-1:
+                done = True
+                env.stats_recorder.done = True
+
             if not (done):
                 rospy.logdebug("NOT DONE")
                 state = nextState
@@ -115,12 +119,12 @@ if __name__ == '__main__':
                 rospy.logdebug("DONE")
                 last_time_steps = numpy.append(last_time_steps, [int(i + 1)])
                 break
-            rospy.logwarn("############### END Step=>" + str(i))
+            rospy.logwarn("############### END Step=>" + str(i)+"/"+str(nsteps))
             #raw_input("Next Step...PRESS KEY")
             # rospy.sleep(2.0)
         m, s = divmod(int(time.time() - start_time), 60)
         h, m = divmod(m, 60)
-        rospy.logerr(("EP: " + str(x + 1) + " - [alpha: " + str(round(qlearn.alpha, 2)) + " - gamma: " + str(
+        rospy.logerr(("EP: " + str(ep + 1) + " - [alpha: " + str(round(qlearn.alpha, 2)) + " - gamma: " + str(
             round(qlearn.gamma, 2)) + " - epsilon: " + str(round(qlearn.epsilon, 2)) + "] - Reward: " + str(
             cumulated_reward) + "     Time: %d:%02d:%02d" % (h, m, s)))
 

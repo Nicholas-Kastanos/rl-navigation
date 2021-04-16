@@ -10,11 +10,5 @@ turtlebot3: #namespace
     epsilon: 0.9
     epsilon_discount: 0.999
     nepisodes: 500
-    nsteps: 1000
+    nsteps: 100
     running_step: 0.06 # Time for each step
-
-    goal:
-        x: 0
-        y: 0
-        yaw: 0
-        tolerance: 0.2

@@ -82,8 +82,6 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
 
     # Methods needed by the RobotGazeboEnv
     # ----------------------------
-
-
     def _check_all_systems_ready(self):
         """
         Checks that all the sensors, publishers and other simulation systems are
@@ -215,14 +213,12 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
 
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
-    def move_base(self, linear_speed, angular_speed, epsilon=0.05, update_rate=10):
+    def move_base(self, linear_speed, angular_speed):
         """
         It will move the base based on the linear and angular speeds given.
         It will wait untill those twists are achived reading from the odometry topic.
         :param linear_speed: Speed in the X axis of the robot base frame
         :param angular_speed: Speed of the angular turning of the robot base frame
-        :param epsilon: Acceptable difference between the speed asked and the odometry readings
-        :param update_rate: Rate at which we check the odometry.
         :return:
         """
         cmd_vel_value = Twist()
@@ -231,61 +227,6 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         rospy.logdebug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
         self._check_publishers_connection()
         self._cmd_vel_pub.publish(cmd_vel_value)
-        #self.wait_until_twist_achieved(cmd_vel_value,epsilon,update_rate)
-        # Weplace a waitof certain amiunt of time, because this twist achived doesnt work properly
-        time.sleep(0.2)
-
-    def wait_until_twist_achieved(self, cmd_vel_value, epsilon, update_rate):
-        """
-        We wait for the cmd_vel twist given to be reached by the robot reading
-        from the odometry.
-        :param cmd_vel_value: Twist we want to wait to reach.
-        :param epsilon: Error acceptable in odometry readings.
-        :param update_rate: Rate at which we check the odometry.
-        :return:
-        """
-        rospy.logdebug("START wait_until_twist_achieved...")
-
-        rate = rospy.Rate(update_rate)
-        start_wait_time = rospy.get_rostime().to_sec()
-        end_wait_time = 0.0
-        epsilon = 0.05
-
-        rospy.logdebug("Desired Twist Cmd>>" + str(cmd_vel_value))
-        rospy.logdebug("epsilon>>" + str(epsilon))
-
-        linear_speed = cmd_vel_value.linear.x
-        angular_speed = cmd_vel_value.angular.z
-
-        linear_speed_plus = linear_speed + epsilon
-        linear_speed_minus = linear_speed - epsilon
-        angular_speed_plus = angular_speed + epsilon
-        angular_speed_minus = angular_speed - epsilon
-
-        while not rospy.is_shutdown():
-            current_odometry = self._check_odom_ready()
-            # IN turtlebot3 the odometry angular readings are inverted, so we have to invert the sign.
-            odom_linear_vel = current_odometry.twist.twist.linear.x
-            odom_angular_vel = -1*current_odometry.twist.twist.angular.z
-
-            rospy.logdebug("Linear VEL=" + str(odom_linear_vel) + ", ?RANGE=[" + str(linear_speed_minus) + ","+str(linear_speed_plus)+"]")
-            rospy.logdebug("Angular VEL=" + str(odom_angular_vel) + ", ?RANGE=[" + str(angular_speed_minus) + ","+str(angular_speed_plus)+"]")
-
-            linear_vel_are_close = (odom_linear_vel <= linear_speed_plus) and (odom_linear_vel > linear_speed_minus)
-            angular_vel_are_close = (odom_angular_vel <= angular_speed_plus) and (odom_angular_vel > angular_speed_minus)
-
-            if linear_vel_are_close and angular_vel_are_close:
-                rospy.logdebug("Reached Velocity!")
-                end_wait_time = rospy.get_rostime().to_sec()
-                break
-            rospy.logdebug("Not there yet, keep waiting...")
-            rate.sleep()
-        delta_time = end_wait_time- start_wait_time
-        rospy.logdebug("[Wait Time=" + str(delta_time)+"]")
-
-        rospy.logdebug("END wait_until_twist_achieved...")
-
-        return delta_time
 
     def _set_model_state(self, model_name: str, pose: Pose=None, twist:Twist=None, reference_frame:str="world"):
         model_state_msg = ModelState()
@@ -293,10 +234,9 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         model_state_msg.pose = pose
         model_state_msg.twist = twist
         model_state_msg.reference_frame = reference_frame
+        rospy.logdebug("TurtleBot3 ModelState Cmd>>" + str(model_state_msg))
         self._check_publishers_connection()
         self._set_model_state_pub.publish(model_state_msg)
-        # time.sleep(0.2)
-
 
     def get_odom(self):
         return self.odom

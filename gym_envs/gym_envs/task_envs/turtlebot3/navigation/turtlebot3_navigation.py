@@ -84,7 +84,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
 
         # Goal Info
-        self.goal_distance_tolerance = rospy.get_param("/turtlebot3/goal/tolerance")
+        self.goal_distance_tolerance = 0.5
         self.goal = [0, 0, 0]
 
         self.cumulated_steps = 0.0
@@ -97,9 +97,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         """Sets the Robot in its init pose
         """
         self.move_base( self.init_linear_forward_speed,
-                        self.init_linear_turn_speed,
-                        epsilon=0.05,
-                        update_rate=10)
+                        self.init_linear_turn_speed)
 
         return True
 
@@ -145,8 +143,8 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             angular_speed = -1*self.angular_speed
             self.last_action = "TURN_RIGHT"
 
-        # We tell TurtleBot2 the linear and angular speed to set to execute
-        self.move_base(linear_speed, angular_speed, epsilon=0.05, update_rate=10)
+        # We tell TurtleBot3 the linear and angular speed to set to execute
+        self.move_base(linear_speed, angular_speed)
 
         rospy.logdebug("END Set Action ==>"+str(action))
 
@@ -186,7 +184,10 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             if isinstance(p2, list):
                 p2 = np.array(p2)
             return np.linalg.norm(p2-p1)
-        if _get_distance(self._get_current_odom_pose(), self.goal) < self.goal_distance_tolerance:
+        rospy.logerr(self.goal)
+        distance = _get_distance(self._get_current_odom_pose(), self.goal)
+        rospy.logerr("Distance to goal: " + str(distance))
+        if distance < self.goal_distance_tolerance:
             return True
         return False
 
@@ -194,10 +195,13 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         if self._episode_done:
             rospy.logerr("TurtleBot3 is already at the destination==>")
-        else:
-            rospy.logwarn("TurtleBot3 is not at the destination==>")
+        # else:
+            # rospy.logwarn("TurtleBot3 is not at the destination==>")
+
+        
 
         if self._is_at_goal():
+            rospy.logerr("TurtleBot3 reached the destination==>")
             self._episode_done = True
         
 
@@ -235,8 +239,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
 
     # Internal TaskEnv Methods
-
-    def discretize_scan_observation(self,data,new_ranges):
+    def discretize_scan_observation(self,data,new_ranges): 
         """
         Discards all the laser readings that are not multiple in index of new_ranges
         value.
@@ -259,11 +262,11 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
                 else:
                     discretized_ranges.append(int(item))
 
-                if (self.min_range > item > 0):
-                    rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-                    self._episode_done = True
-                else:
-                    rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
+                # if (self.min_range > item > 0):
+                #     rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
+                #     self._episode_done = True
+                # else:
+                #     rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
 
 
         return discretized_ranges
