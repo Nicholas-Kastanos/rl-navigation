@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  openai_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -108,7 +109,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES miniproject
-#  CATKIN_DEPENDS gazebo_ros geometry_msgs nav_msgs rospy sensor_msgs std_msgs
+#  CATKIN_DEPENDS gazebo_ros geometry_msgs nav_msgs rospy sensor_msgs std_msgs openai_ros
 #  DEPENDS system_lib
 )
 
