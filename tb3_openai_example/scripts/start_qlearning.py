@@ -10,6 +10,8 @@ import rospy
 import rospkg
 from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 import gym_envs
+from tqdm import tqdm
+from functools import reduce
 
 def _launch_custom_env(task_and_robot_environment_name: str):
     rospy.logwarn("Env: {} will be imported".format(
@@ -55,9 +57,8 @@ if __name__ == '__main__':
 
     running_step = rospy.get_param("/turtlebot3/running_step")
 
-    x = rospy.get_param("/turtlebot3/goal/x")
-    y = rospy.get_param("/turtlebot3/goal/y")
-    yaw = rospy.get_param("/turtlebot3/goal/yaw")
+    x = 0
+    y = 0
 
     # Initialises the algorithm that we are going to use for learning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     for ep in range(nepisodes):
         rospy.logdebug("############### START EPISODE=>" + str(ep))
 
-        env.set_goal(x, y, yaw)
+        env.set_goal(x, y)
 
         cumulated_reward = 0
         done = False
@@ -85,8 +86,8 @@ if __name__ == '__main__':
         # Show on screen the actual situation of the robot
         # env.render()
         # for each episode, we test the robot for nsteps
-        for i in range(nsteps):
-            # rospy.logwarn("############### Start Step=>" + str(i))
+        for i in tqdm(range(nsteps)):
+            rospy.logdebug("############### Start Step=>" + str(i))
             # Pick an action based on the current state
             action = qlearn.chooseAction(state)
             rospy.logdebug("Next action is:%d", action)
@@ -119,9 +120,7 @@ if __name__ == '__main__':
                 rospy.logdebug("DONE")
                 last_time_steps = numpy.append(last_time_steps, [int(i + 1)])
                 break
-            rospy.logwarn("############### END Step=>" + str(i)+"/"+str(nsteps))
-            #raw_input("Next Step...PRESS KEY")
-            # rospy.sleep(2.0)
+            rospy.logdebug("############### END Step=>" + str(i)+"/"+str(nsteps))
         m, s = divmod(int(time.time() - start_time), 60)
         h, m = divmod(m, 60)
         rospy.logerr(("EP: " + str(ep + 1) + " - [alpha: " + str(round(qlearn.alpha, 2)) + " - gamma: " + str(
@@ -135,7 +134,7 @@ if __name__ == '__main__':
     l.sort()
 
     # print("Parameters: a="+str)
-    rospy.loginfo("Overall score: {:0.2f}".format(last_time_steps.mean()))
-    rospy.loginfo("Best 100 score: {:0.2f}".format(reduce(lambda x, y: x + y, l[-100:]) / len(l[-100:])))
+    rospy.logwarn("Overall score: {:0.2f}".format(last_time_steps.mean()))
+    rospy.logwarn("Best 100 score: {:0.2f}".format(reduce(lambda x, y: x + y, l[-100:]) / len(l[-100:])))
 
     env.close()

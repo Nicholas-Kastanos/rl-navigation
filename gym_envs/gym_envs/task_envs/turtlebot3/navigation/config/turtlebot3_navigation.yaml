@@ -1,13 +1,13 @@
 turtlebot3: #namespace
 
-    n_actions: 3 # We have 3 actions, Forwards,TurnLeft,TurnRight
-    n_observations: 12 # We have 6 different lidar observations + 3 odom + 3 goal pose
+    n_actions: 4 # We have 4 actions, Forwards,TurnLeft,TurnRight, Reverse
+    n_observations: 11 # We have 6 different lidar observations + 3 odom + 2 goal pose
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 0.5 # Spwwed for ging fowards
-    linear_turn_speed: 0.05 # Lienare speed when turning
-    angular_speed: 0.3 # Angular speed when turning Left or Right
+    linear_forward_speed: 1 # Spwwed for ging fowards
+    linear_turn_speed: 0.5 # Lienare speed when turning
+    angular_speed: 0.5 # Angular speed when turning Left or Right
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
     init_linear_turn_speed: 0.0 # Initial angular speed in shich we start each episode
     

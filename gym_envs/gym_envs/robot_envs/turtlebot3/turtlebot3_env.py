@@ -213,7 +213,7 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
 
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
-    def move_base(self, linear_speed, angular_speed):
+    def move_base(self, linear_speed, angular_speed, move_freq=10):
         """
         It will move the base based on the linear and angular speeds given.
         It will wait untill those twists are achived reading from the odometry topic.
@@ -221,12 +221,18 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         :param angular_speed: Speed of the angular turning of the robot base frame
         :return:
         """
+        rate = rospy.Rate(move_freq)
         cmd_vel_value = Twist()
         cmd_vel_value.linear.x = linear_speed
         cmd_vel_value.angular.z = angular_speed
         rospy.logdebug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
         self._check_publishers_connection()
         self._cmd_vel_pub.publish(cmd_vel_value)
+        try:
+            rate.sleep()
+        except rospy.ROSInterruptException:
+            # This is to avoid error when world is rested, time when backwards.
+            pass
 
     def _set_model_state(self, model_name: str, pose: Pose=None, twist:Twist=None, reference_frame:str="world"):
         model_state_msg = ModelState()

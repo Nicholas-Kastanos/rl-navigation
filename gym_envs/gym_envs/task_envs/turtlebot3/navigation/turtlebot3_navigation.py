@@ -3,7 +3,7 @@ import numpy as np
 from gym import spaces
 from ....robot_envs import TurtleBot3Env
 from geometry_msgs.msg import Vector3
-from ...task_commons import LoadYamlFileParams, pose_to_euler
+from ...task_commons import LoadYamlFileParams, pose_to_euler, get_distance
 from openai_ros.openai_ros_common import ROSLauncher
 import os
 from geometry_msgs.msg import Pose, Twist
@@ -38,20 +38,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         # We set the reward range, which is not compulsory but here we do it.
         self.reward_range = (-np.inf, np.inf)
-
-
-        #number_observations = rospy.get_param('/turtlebot3/n_observations')
-        """
-        We set the Observation space for the 6 observations
-        cube_observations = [
-            round(current_disk_roll_vel, 0),
-            round(y_distance, 1),
-            round(roll, 1),
-            round(pitch, 1),
-            round(y_linear_speed,1),
-            round(yaw, 1),
-        ]
-        """
 
         # Actions and Observations
         self.linear_forward_speed = rospy.get_param('/turtlebot3/linear_forward_speed')
@@ -89,8 +75,8 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         self.cumulated_steps = 0.0
 
-    def set_goal(self, x, y, yaw):
-        self.goal = [x, y, np.mod(yaw, 2*np.pi)]
+    def set_goal(self, x, y):
+        self.goal = [x, y]
 
 
     def _set_init_pose(self):
@@ -142,6 +128,10 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             linear_speed = self.linear_turn_speed
             angular_speed = -1*self.angular_speed
             self.last_action = "TURN_RIGHT"
+        elif action == 3: #REVERSE
+            linear_speed = -1*self.linear_forward_speed
+            angular_speed = 0.0
+            self.last_action = "REVERSE"
 
         # We tell TurtleBot3 the linear and angular speed to set to execute
         self.move_base(linear_speed, angular_speed)
@@ -178,15 +168,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         return discretized_observations
 
     def _is_at_goal(self):
-        def _get_distance(p1, p2):
-            if isinstance(p1, list):
-                p1 = np.array(p1)
-            if isinstance(p2, list):
-                p2 = np.array(p2)
-            return np.linalg.norm(p2-p1)
-        rospy.logerr(self.goal)
-        distance = _get_distance(self._get_current_odom_pose(), self.goal)
-        rospy.logerr("Distance to goal: " + str(distance))
+        distance = get_distance(self._get_current_odom_pose()[:2], self.goal)
         if distance < self.goal_distance_tolerance:
             return True
         return False
@@ -197,8 +179,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             rospy.logerr("TurtleBot3 is already at the destination==>")
         # else:
             # rospy.logwarn("TurtleBot3 is not at the destination==>")
-
-        
 
         if self._is_at_goal():
             rospy.logerr("TurtleBot3 reached the destination==>")
@@ -224,7 +204,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             #     reward = self.forwards_reward
             # else:
             #     reward = self.turn_reward
-            reward = self.step_reward
+            reward = self.step_reward * get_distance(self._get_current_odom_pose()[:2], self.goal)
         else:
             reward = 0
 
