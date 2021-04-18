@@ -57,14 +57,36 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         # In the discretization method.
         laser_scan = self.get_laser_scan()
         num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
+
         high = np.full((num_laser_readings), self.max_laser_value)
         low = np.full((num_laser_readings), self.min_laser_value)
 
+        # add odom observation
+        ## x
+        high = np.append(high, 4)
+        low = np.append(low, -4)
+
+        ## y
+        high = np.append(high, 4)
+        low = np.append(low, -4)
+
+        ## yaw
+        high = np.append(high, 2 * np.pi)
+        low = np.append(low, 0)
+
+        # add goal observation
+        ## x
+        high = np.append(high, 4)
+        low = np.append(low, -4)
+        ## y
+        high = np.append(high, 4)
+        low = np.append(low, -4)
+
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
-
-        rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
-        rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
+        rospy.logwarn("Num Laster Readings: " + str(num_laser_readings))
+        rospy.logwarn("ACTION SPACES TYPE===>"+str(self.action_space))
+        rospy.logwarn("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
         # Rewards
         self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
@@ -165,7 +187,9 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
-        return discretized_observations
+
+
+        return self.quantise_obs(discretized_observations)
 
     def _is_at_goal(self):
         distance = get_distance(self._get_current_odom_pose()[:2], self.goal)
@@ -251,6 +275,8 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         return discretized_ranges
 
+    def quantise_obs(self, obs):
+        return np.around(obs, decimals=1)
 
     def get_vector_magnitude(self, vector):
         """

@@ -16,6 +16,7 @@ def pose_to_euler(pose):
         pose.orientation.z,
         pose.orientation.w
     ])
+    yaw = np.mod(yaw, 2*np.pi)
     return [pose.position.x, pose.position.y, yaw]
 
 def get_distance(p1, p2):

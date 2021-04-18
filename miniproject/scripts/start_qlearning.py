@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import gym
-import numpy
+import numpy as np
 import time
 import qlearn
 from gym import wrappers
@@ -12,6 +12,8 @@ from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
 import gym_envs
 from tqdm import tqdm
 from functools import reduce
+
+import matplotlib.pyplot as plt
 
 def _launch_custom_env(task_and_robot_environment_name: str):
     rospy.logwarn("Env: {} will be imported".format(
@@ -37,20 +39,22 @@ if __name__ == '__main__':
     rospy.loginfo("Starting Learning")
 
     # Set the logging system
-    rospack = rospkg.RosPack()
-    pkg_path = rospack.get_path('miniproject')
-    outdir = pkg_path + '/training_results'
-    env = wrappers.Monitor(env, outdir, force=True)
-    rospy.loginfo("Monitor Wrapper started")
+    # rospack = rospkg.RosPack()
+    # pkg_path = rospack.get_path('miniproject')
+    # outdir = pkg_path + '/training_results'
+    # env = wrappers.Monitor(env, outdir, force=True)
+    # rospy.loginfo("Monitor Wrapper started")
 
-    last_time_steps = numpy.ndarray(0)
+    h_num_steps = np.ndarray(0)
+    h_reward = np.ndarray(0)
+    h_epsilon = np.ndarray(0)
 
     # Loads parameters from the ROS param server
     # Parameters are stored in a yaml file inside the config directory
     # They are loaded at runtime by the launch file
-    Alpha = rospy.get_param("/turtlebot3/alpha")
-    Epsilon = rospy.get_param("/turtlebot3/epsilon")
-    Gamma = rospy.get_param("/turtlebot3/gamma")
+    Alpha = rospy.get_param("/turtlebot3/alpha") # Learning Rate
+    Epsilon = rospy.get_param("/turtlebot3/epsilon") 
+    Gamma = rospy.get_param("/turtlebot3/gamma") # Discount Factor
     epsilon_discount = rospy.get_param("/turtlebot3/epsilon_discount")
     nepisodes = rospy.get_param("/turtlebot3/nepisodes")
     nsteps = rospy.get_param("/turtlebot3/nsteps")
@@ -78,6 +82,7 @@ if __name__ == '__main__':
         done = False
         if qlearn.epsilon > 0.05:
             qlearn.epsilon *= epsilon_discount
+        h_epsilon = np.append(h_epsilon, qlearn.epsilon)
 
         # Initialize the environment and get first state of the robot
         observation = env.reset()
@@ -109,20 +114,21 @@ if __name__ == '__main__':
             rospy.logdebug("# State in which we will start next step=>" + str(nextState))
             qlearn.learn(state, action, reward, nextState)
 
-            if i == nsteps-1:
-                done = True
-                env.stats_recorder.done = True
-
             if not (done):
                 rospy.logdebug("NOT DONE")
                 state = nextState
+                if i == nsteps - 1:
+                    rospy.logdebug("RAN OUT OF TIME STEPS")
+                    h_num_steps = np.append(h_num_steps, i + 1)
             else:
+                h_num_steps = np.append(h_num_steps, i + 1)     
                 rospy.logdebug("DONE")
-                last_time_steps = numpy.append(last_time_steps, [int(i + 1)])
                 break
             rospy.logdebug("############### END Step=>" + str(i)+"/"+str(nsteps))
+        
         m, s = divmod(int(time.time() - start_time), 60)
         h, m = divmod(m, 60)
+        h_reward = np.append(h_reward, cumulated_reward)
         rospy.logerr(("EP: " + str(ep + 1) + " - [alpha: " + str(round(qlearn.alpha, 2)) + " - gamma: " + str(
             round(qlearn.gamma, 2)) + " - epsilon: " + str(round(qlearn.epsilon, 2)) + "] - Reward: " + str(
             cumulated_reward) + "     Time: %d:%02d:%02d" % (h, m, s)))
@@ -130,11 +136,25 @@ if __name__ == '__main__':
     rospy.loginfo(("\n|" + str(nepisodes) + "|" + str(qlearn.alpha) + "|" + str(qlearn.gamma) + "|" + str(
         initial_epsilon) + "*" + str(epsilon_discount) + "|" + str(highest_reward) + "| PICTURE |"))
 
-    l = last_time_steps.tolist()
-    l.sort()
-
     # print("Parameters: a="+str)
-    rospy.logwarn("Overall score: {:0.2f}".format(last_time_steps.mean()))
-    rospy.logwarn("Best 100 score: {:0.2f}".format(reduce(lambda x, y: x + y, l[-100:]) / len(l[-100:])))
+    rospy.logwarn("Overall score: {:0.2f}".format(h_num_steps.mean()))
+    # rospy.logwarn("Best 100 score: {:0.2f}".format(reduce(lambda x, y: x + y, l[-100:]) / len(l[-100:])))
+
+    plt.figure()
+    plt.plot(range(nepisodes), h_num_steps)
+    plt.xlabel("Episode")
+    plt.ylabel("Num Steps")
+
+    plt.figure()
+    plt.plot(range(nepisodes), h_reward)
+    plt.xlabel("Episode")
+    plt.ylabel("Cumulative Reward")
+
+    plt.figure()
+    plt.plot(range(nepisodes), h_epsilon)
+    plt.xlabel("Episode")
+    plt.ylabel("Epsilon")
+    plt.show()
+
 
     env.close()
