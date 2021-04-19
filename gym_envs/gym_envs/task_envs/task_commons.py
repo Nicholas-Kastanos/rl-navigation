@@ -19,10 +19,14 @@ def pose_to_euler(pose):
     yaw = np.mod(yaw, 2*np.pi)
     return [pose.position.x, pose.position.y, yaw]
 
-def get_distance(p1, p2):
+def get_diff(p1, p2):
     if isinstance(p1, list):
         p1 = np.array(p1)
     if isinstance(p2, list):
         p2 = np.array(p2)
-    return np.linalg.norm(p2-p1)
+    return p2-p1
+
+def get_distance(p1, p2):
+    return np.linalg.norm(get_diff(p1, p2))
+
         

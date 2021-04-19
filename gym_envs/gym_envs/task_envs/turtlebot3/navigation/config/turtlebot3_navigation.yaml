@@ -1,25 +1,23 @@
 turtlebot3: #namespace
 
-    n_actions: 4 # We have 4 actions, Forwards,TurnLeft,TurnRight, Reverse
+    n_actions: 6 # We have 4 actions, Forwards,TurnLeft,TurnRight, Reverse
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 1 # Spwwed for ging fowards
-    linear_turn_speed: 0.5 # Lienare speed when turning
-    angular_speed: 0.5 # Angular speed when turning Left or Right
+    linear_forward_speed: 0.22 # Speed for going fowards. Set to TB3 Max
+    linear_turn_speed: 0.22 # Lienare speed when turning
+    angular_speed: 0.25 # Angular speed when turning Left or Right
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
     init_linear_turn_speed: 0.0 # Initial angular speed in shich we start each episode
     
-    new_ranges: 10 # How many laser readings we jump in each observation reading, the bigger the less laser resolution
-    min_range: 0.12 # Minimum meters below wich we consider we have crashed
+    new_ranges: 25 # How many laser readings we jump in each observation reading, the bigger the less laser resolution
+    min_range: 0.2 # Minimum meters below wich we consider we have crashed
     max_laser_value: 3.5 # Value considered Ok, no wall
     min_laser_value: 0 # Value considered there is an obstacle or crashed
     max_linear_aceleration: 5.0 # Linear acceleration value in which we consider Turtlebot 3 has crashed into something
     
     rewards:
-        # forwards_reward: 5 # Points Given to go forwards
-        # turn_reward: 1 # Points Given to turn as action
-        # end_episode_points: 200 # Points given when ending an episode
         step: -1
+        contact: -10
     
 

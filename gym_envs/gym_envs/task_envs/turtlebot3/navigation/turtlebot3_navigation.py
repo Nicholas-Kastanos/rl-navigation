@@ -3,7 +3,7 @@ import numpy as np
 from gym import spaces
 from ....robot_envs import TurtleBot3Env
 from geometry_msgs.msg import Vector3
-from ...task_commons import LoadYamlFileParams, pose_to_euler, get_distance
+from ...task_commons import LoadYamlFileParams, pose_to_euler, get_distance, get_diff
 from openai_ros.openai_ros_common import ROSLauncher
 import os
 from geometry_msgs.msg import Pose, Twist
@@ -56,40 +56,33 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
         laser_scan = self.get_laser_scan()
-        num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
+        self._num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
 
-        high = np.full((num_laser_readings), self.max_laser_value)
-        low = np.full((num_laser_readings), self.min_laser_value)
+        high = np.full((self._num_laser_readings), self.max_laser_value)
+        low = np.full((self._num_laser_readings), self.min_laser_value)
 
-        # add odom observation
-        ## x
-        high = np.append(high, 4)
-        low = np.append(low, -4)
+        # add goal-odom observation
+        ##      x
+        high = np.append(high, 8)
+        low = np.append(low, -8)
 
-        ## y
-        high = np.append(high, 4)
-        low = np.append(low, -4)
+        ##      y
+        high = np.append(high, 8)
+        low = np.append(low, -8)
 
-        ## yaw
+        # Robot current Yaw yaw
         high = np.append(high, 2 * np.pi)
         low = np.append(low, 0)
 
-        # add goal observation
-        ## x
-        high = np.append(high, 4)
-        low = np.append(low, -4)
-        ## y
-        high = np.append(high, 4)
-        low = np.append(low, -4)
-
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
-        rospy.logwarn("Num Laster Readings: " + str(num_laser_readings))
+        rospy.logwarn("Num Laster Readings: " + str(self._num_laser_readings))
         rospy.logwarn("ACTION SPACES TYPE===>"+str(self.action_space))
         rospy.logwarn("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
         # Rewards
         self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
+        self.contact_reward = rospy.get_param("turtlebot3/rewards/contact")
 
         # Goal Info
         self.goal_distance_tolerance = 0.5
@@ -136,32 +129,36 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         :param action: The action integer that set s what movement to do next.
         """
 
+
         rospy.logdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
         if action == 0: #FORWARD
             linear_speed = self.linear_forward_speed
             angular_speed = 0.0
             self.last_action = "FORWARDS"
-        elif action == 1: #LEFT
-            linear_speed = self.linear_turn_speed
-            angular_speed = self.angular_speed
-            self.last_action = "TURN_LEFT"
-        elif action == 2: #RIGHT
+        elif action == 1:
             linear_speed = self.linear_turn_speed
             angular_speed = -1*self.angular_speed
-            self.last_action = "TURN_RIGHT"
-        elif action == 3: #REVERSE
+            self.last_action = "FORWARD_RIGHT"
+        elif action == 2:
+            linear_speed = 0.0
+            angular_speed = -1*self.angular_speed
+            self.last_action = "RIGHT"
+        elif action == 3:
             linear_speed = -1*self.linear_forward_speed
             angular_speed = 0.0
             self.last_action = "REVERSE"
-
-        # We tell TurtleBot3 the linear and angular speed to set to execute
+        elif action == 4:
+            linear_speed = 0.0
+            angular_speed = self.angular_speed
+            self.last_action = "LEFT"
+        elif action == 5:
+            linear_speed = self.linear_turn_speed
+            angular_speed = self.angular_speed
+            self.last_action = "FORWARD_LEFT"
         self.move_base(linear_speed, angular_speed)
 
         rospy.logdebug("END Set Action ==>"+str(action))
-
-
-
 
     def _get_current_odom_pose(self):
         odom = self.get_odom()
@@ -181,9 +178,9 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         discretized_observations = self.discretize_scan_observation(    laser_scan,
                                                                         self.new_ranges
                                                                         )
-
-        discretized_observations += self._get_current_odom_pose()
-        discretized_observations += self.goal
+        current_odom = self._get_current_odom_pose()
+        discretized_observations += get_diff(current_odom[:2], self.goal).tolist() # Diff vec
+        discretized_observations += current_odom[2] # Yaw
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
@@ -229,6 +226,11 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             # else:
             #     reward = self.turn_reward
             reward = self.step_reward * get_distance(self._get_current_odom_pose()[:2], self.goal)
+
+            # Check if any laser readings are the minimum laser value  ie touching a wall
+            mask = np.array(observations[:self._num_laser_readings]) == 0
+            if np.any(mask):
+                reward += self.contact_reward
         else:
             reward = 0
 
