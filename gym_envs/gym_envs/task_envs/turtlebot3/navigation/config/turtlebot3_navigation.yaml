@@ -4,8 +4,8 @@ turtlebot3: #namespace
 
     speed_step: 1.0 # Time to wait in the reset phases
 
-    linear_forward_speed: 0.22 # Speed for going fowards. Set to TB3 Max
-    linear_turn_speed: 0.22 # Lienare speed when turning
+    linear_forward_speed: 0.5 # Speed for going fowards. Set to TB3 Max
+    linear_turn_speed: 0.5 # Lienare speed when turning
     angular_speed: 0.25 # Angular speed when turning Left or Right
     init_linear_forward_speed: 0.0 # Initial linear speed in which we start each episode
     init_linear_turn_speed: 0.0 # Initial angular speed in shich we start each episode

@@ -3,16 +3,11 @@ import numpy as np
 from gym import spaces
 from ....robot_envs import TurtleBot3Env
 from geometry_msgs.msg import Vector3
-from ...task_commons import LoadYamlFileParams, pose_to_euler, get_distance, get_diff
+from ...task_commons import LoadYamlFileParams, pose_to_euler, get_distance, get_relative_position, signed_yaw_diff
 from openai_ros.openai_ros_common import ROSLauncher
 import os
 from geometry_msgs.msg import Pose, Twist
 from tf.transformations import quaternion_from_euler
-
-X = 0
-Y = 1
-YAW = 2
-
 
 class TurtleBot3NavigationEnv(TurtleBot3Env):
     def __init__(self):
@@ -65,7 +60,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         high = np.full((self._num_laser_readings), self.max_laser_value)
         low = np.full((self._num_laser_readings), self.min_laser_value)
 
-        # add goal-odom observation
+        # relative position of goal (only x and y) relative to robot
         ##      x
         high = np.append(high, 8)
         low = np.append(low, -8)
@@ -74,9 +69,9 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         high = np.append(high, 8)
         low = np.append(low, -8)
 
-        # # Robot current Yaw yaw
-        # high = np.append(high, 2 * np.pi)
-        # low = np.append(low, 0)
+        # difference in yaw between robot and desired yaw
+        high = np.append(high, np.pi)
+        low = np.append(low, -np.pi)
 
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
@@ -89,13 +84,13 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         self.contact_reward = rospy.get_param("turtlebot3/rewards/contact")
 
         # Goal Info
-        self.goal_distance_tolerance = 0.5
-        self.goal = [0, 0, 0]
+        self.goal_distance_tolerance = 0.2
+        self.set_goal(0, 0, 0)
 
         self.cumulated_steps = 0.0
 
-    def set_goal(self, x, y):
-        self.goal = [x, y]
+    def set_goal(self, x, y, yaw):
+        self.goal = [x, y, np.mod(yaw, 2*np.pi)]
 
     def set_tb_state(self, x, y, yaw):
         pose = Pose()
@@ -122,7 +117,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         """
         # For Info Purposes
         self.cumulated_reward = 0.0
-        # Set to false Done, because its calculated asyncronously
+        # Set done to false, because its calculated asyncronously
         self._episode_done = False
 
     def _set_action(self, action):
@@ -131,8 +126,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         based on the action number given.
         :param action: The action integer that set s what movement to do next.
         """
-
-
         rospy.logdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
         if action == 0: #FORWARD
@@ -167,33 +160,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         odom = self.get_odom()
         return pose_to_euler(odom.pose.pose)
 
-    def get_relative_position(self, absolute_pose, absolute_position):
-        # pose is robot
-        # position is goal
-        M = np.array(
-            [
-            [np.cos(absolute_pose[YAW]), np.sin(absolute_pose[YAW])], 
-            [-np.sin(absolute_pose[YAW]), np.cos(absolute_pose[YAW])]
-            ]
-        )
-        X_position = np.array(
-            [
-            [absolute_position[X]],
-            [absolute_position[Y]]
-            ]
-        )
-        X_pose = np.array(
-            [
-            [absolute_pose[X]],
-            [absolute_pose[Y]]
-            ]
-        )
-
-        relative_position = np.matmul(M,(X_position - X_pose))
-        relative_position = np.reshape(relative_position, (2,))
-
-        return relative_position
-
     def get_observation(self):
         return self._get_obs()
 
@@ -212,17 +178,16 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
                                                                         self.new_ranges
                                                                         )
         current_odom = self._get_current_odom_pose()
-        discretized_observations += (self.get_relative_position(current_odom, self.goal) / get_distance(current_odom[2:], self.goal)).tolist()
-        # discretized_observations += current_odom[2] # Yaw
+        discretized_observations += get_relative_position(current_odom, self.goal).tolist()
+        discretized_observations += [signed_yaw_diff(current_odom, self.goal)] # Yaw
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
 
-
         return self.quantise_obs(discretized_observations)
 
     def _is_at_goal(self):
-        distance = get_distance(self._get_current_odom_pose()[:2], self.goal)
+        distance = get_distance(self._get_current_odom_pose(), self.goal)
         if distance < self.goal_distance_tolerance:
             return True
         return False
@@ -258,7 +223,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             #     reward = self.forwards_reward
             # else:
             #     reward = self.turn_reward
-            reward = self.step_reward # * get_distance(self._get_current_odom_pose()[:2], self.goal)
+            reward = self.step_reward # * get_distance(self._get_current_odom_pose(), self.goal)
 
             # Check if any laser readings are the minimum laser value  ie touching a wall
             mask = np.array(observations[:self._num_laser_readings]) == 0

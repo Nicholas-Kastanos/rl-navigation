@@ -70,6 +70,7 @@ if __name__ == '__main__':
 
     x = 0
     y = -1
+    yaw = np.pi/2
 
     # Initialises the algorithm that we are going to use for learning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     for ep in range(nepisodes):
         rospy.logdebug("############### START EPISODE=>" + str(ep))
 
-        env.set_goal(x, y)
+        env.set_goal(x, y, yaw)
 
         cumulated_reward = 0
         done = False
