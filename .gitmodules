@@ -14,3 +14,9 @@
 	path = turtlebot3_simulations
 	url = https://github.com/ROBOTIS-GIT/turtlebot3_simulations.git
 	branch = kinetic-devel
+[submodule "openai_ros2_msgs"]
+	path = openai_ros2_msgs
+	url = https://github.com/Nicholas-Kastanos/openai_ros2_msgs
+[submodule "openai_ros2"]
+	path = openai_ros2
+	url = https://github.com/Nicholas-Kastanos/openai_ros2
