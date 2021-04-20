@@ -1,0 +1,20 @@
+world:
+    limits:
+        x:
+            max: 4
+            min: -4
+        y:
+            max: 4
+            min: -4
+    obstacle_radius: 0.3
+    obstacle_positions: 
+        - x: 0
+          y: 0
+        - x: 1
+          y: 1
+        - x: -1
+          y: -1
+        - x: -1
+          y: 1
+        - x: 1
+          y: -1

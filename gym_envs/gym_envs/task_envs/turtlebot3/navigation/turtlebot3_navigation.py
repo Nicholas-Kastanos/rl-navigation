@@ -9,6 +9,10 @@ import os
 from geometry_msgs.msg import Pose, Twist
 from tf.transformations import quaternion_from_euler
 
+X = 0
+Y = 1
+YAW = 2
+
 
 class TurtleBot3NavigationEnv(TurtleBot3Env):
     def __init__(self):
@@ -70,9 +74,9 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         high = np.append(high, 8)
         low = np.append(low, -8)
 
-        # Robot current Yaw yaw
-        high = np.append(high, 2 * np.pi)
-        low = np.append(low, 0)
+        # # Robot current Yaw yaw
+        # high = np.append(high, 2 * np.pi)
+        # low = np.append(low, 0)
 
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
@@ -92,6 +96,13 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
     def set_goal(self, x, y):
         self.goal = [x, y]
+
+    def set_tb_state(self, x, y, yaw):
+        pose = Pose()
+        pose.position.x = x
+        pose.position.y = y
+        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w  = quaternion_from_euler(0, 0, yaw)
+        self._set_model_state("turtlebot3_burger", pose=pose, twist=Twist())
 
 
     def _set_init_pose(self):
@@ -113,14 +124,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         self.cumulated_reward = 0.0
         # Set to false Done, because its calculated asyncronously
         self._episode_done = False
-
-        # Move robot to new position. Must be done here and not _set_init_pose becuase the world is reset after that method is called.
-        pose = Pose()
-        pose.position.x = 1
-        pose.position.y = 1
-        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w  = quaternion_from_euler(0, 0, np.pi)
-        self._set_model_state("turtlebot3_burger", pose=pose, twist=Twist())
-
 
     def _set_action(self, action):
         """
@@ -164,6 +167,36 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         odom = self.get_odom()
         return pose_to_euler(odom.pose.pose)
 
+    def get_relative_position(self, absolute_pose, absolute_position):
+        # pose is robot
+        # position is goal
+        M = np.array(
+            [
+            [np.cos(absolute_pose[YAW]), np.sin(absolute_pose[YAW])], 
+            [-np.sin(absolute_pose[YAW]), np.cos(absolute_pose[YAW])]
+            ]
+        )
+        X_position = np.array(
+            [
+            [absolute_position[X]],
+            [absolute_position[Y]]
+            ]
+        )
+        X_pose = np.array(
+            [
+            [absolute_pose[X]],
+            [absolute_pose[Y]]
+            ]
+        )
+
+        relative_position = np.matmul(M,(X_position - X_pose))
+        relative_position = np.reshape(relative_position, (2,))
+
+        return relative_position
+
+    def get_observation(self):
+        return self._get_obs()
+
     def _get_obs(self):
         """
         Here we define what sensor data defines our robots observations
@@ -179,8 +212,8 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
                                                                         self.new_ranges
                                                                         )
         current_odom = self._get_current_odom_pose()
-        discretized_observations += get_diff(current_odom[:2], self.goal).tolist() # Diff vec
-        discretized_observations += current_odom[2] # Yaw
+        discretized_observations += (self.get_relative_position(current_odom, self.goal) / get_distance(current_odom[2:], self.goal)).tolist()
+        # discretized_observations += current_odom[2] # Yaw
 
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
@@ -225,7 +258,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             #     reward = self.forwards_reward
             # else:
             #     reward = self.turn_reward
-            reward = self.step_reward * get_distance(self._get_current_odom_pose()[:2], self.goal)
+            reward = self.step_reward # * get_distance(self._get_current_odom_pose()[:2], self.goal)
 
             # Check if any laser readings are the minimum laser value  ie touching a wall
             mask = np.array(observations[:self._num_laser_readings]) == 0

@@ -19,5 +19,3 @@ turtlebot3: #namespace
     rewards:
         step: -1
         contact: -10
-    
-

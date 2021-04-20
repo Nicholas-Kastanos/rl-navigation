@@ -1,6 +1,7 @@
 <launch>
     <!-- This version uses the openai_ros environments -->
     <rosparam command="load" file="$(find miniproject)/config/tb3_openai_qlearn_params.yaml" />
+    <rosparam command="load" file="$(find miniproject)/config/cylinders_world.yaml" />
     <!-- Launch the training system -->
     <node pkg="miniproject" name="turtlebot3_navigation" type="start_qlearning.py" output="screen"/>
 </launch>

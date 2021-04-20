@@ -58,11 +58,18 @@ if __name__ == '__main__':
     epsilon_discount = rospy.get_param("/turtlebot3/epsilon_discount")
     nepisodes = rospy.get_param("/turtlebot3/nepisodes")
     nsteps = rospy.get_param("/turtlebot3/nsteps")
-
     running_step = rospy.get_param("/turtlebot3/running_step")
 
+    world_lim_x_max = rospy.get_param("/world/limits/x/max")
+    world_lim_x_min = rospy.get_param("/world/limits/x/min")
+    world_lim_y_max = rospy.get_param("/world/limits/y/max")
+    world_lim_y_min = rospy.get_param("/world/limits/y/min")
+
+    obstacle_radius = rospy.get_param("/world/obstacle_radius")
+    obstacle_positions = rospy.get_param("/world/obstacle_positions")
+
     x = 0
-    y = 0
+    y = -1
 
     # Initialises the algorithm that we are going to use for learning
     qlearn = qlearn.QLearn(actions=range(env.action_space.n),
@@ -86,6 +93,9 @@ if __name__ == '__main__':
 
         # Initialize the environment and get first state of the robot
         observation = env.reset()
+        # Move robot to new position. Must be done here and not _set_init_pose becuase the world is reset after that method is called.
+        env.set_tb_state(0, 1, np.pi)
+        observation = env.get_observation()
         state = ''.join(map(str, observation))
 
         # Show on screen the actual situation of the robot
