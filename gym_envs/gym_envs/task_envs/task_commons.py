@@ -1,7 +1,8 @@
-import rosparam
 import os
-from tf.transformations import euler_from_quaternion
+
 import numpy as np
+import rosparam
+from geometry_msgs.msg import Pose, Quaternion
 
 X=0
 Y=1
@@ -13,13 +14,30 @@ def LoadYamlFileParams(path_config_file):
     for params, ns in paramlist:
         rosparam.upload_params(ns,params)
 
-def pose_to_euler(pose):
-    _, _, yaw = euler_from_quaternion([
-        pose.orientation.x,
-        pose.orientation.y,
-        pose.orientation.z,
-        pose.orientation.w
-    ])
+def _quart_to_euler_angles(x, y=None, z=None, w=None):
+    if isinstance(x, list):
+        return _quart_to_euler_angles(x[0], x[1], x[2], x[3])
+    if isinstance(x, Quaternion):
+        return _quart_to_euler_angles(x.x, x.y, x.z, x.w)
+
+    sinr_cosp = 2 * (w * x + y * z)
+    cosr_cosp = 1 - 2 * (x * x + y * y)
+    roll = np.arctan2(sinr_cosp, cosr_cosp)
+
+    sinp = 2 * (w * y - z * x)
+    if np.abs(sinp) >= 1:
+        pitch = np.copysign(np.pi / 2, sinp)
+    else:
+        pitch = np.arcsin(sinp)
+
+    siny_cosp = 2 * (w * z + x * y)
+    cosy_cosp = 1 - 2 * (y * y + z * z)
+    yaw = np.arctan2(siny_cosp, cosy_cosp)
+
+    return roll, pitch, yaw
+
+def pose_to_euler(pose: Pose):
+    _, _, yaw = _quart_to_euler_angles(pose.orientation)
     yaw = np.mod(yaw, 2*np.pi)
     return [pose.position.x, pose.position.y, yaw]
 
