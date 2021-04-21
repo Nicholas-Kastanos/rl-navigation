@@ -1,7 +1,3 @@
-[submodule "openai_ros"]
-	path = openai_ros
-	url = https://bitbucket.org/theconstructcore/openai_ros.git
-	branch = version2
 [submodule "turtlebot3_msgs"]
 	path = turtlebot3_msgs
 	url = https://github.com/ROBOTIS-GIT/turtlebot3_msgs.git
