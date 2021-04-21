@@ -1,3 +1,6 @@
+import os
+from glob import glob
+
 from setuptools import setup
 
 package_name = 'miniproject'
@@ -10,6 +13,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name), glob('miniproject/launch/*.launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'cylinders_world = miniproject.cylinders_world.py:main'
+            'start_qlearning = miniproject.scripts.start_qlearning:main'
         ],
     },
 )
