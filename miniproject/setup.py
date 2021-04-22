@@ -15,7 +15,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name), glob('miniproject/launch/*.launch.py')),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'gym_envs'],
     zip_safe=True,
     maintainer='nicholas',
     maintainer_email='nicholaskastanos@gmail.com',

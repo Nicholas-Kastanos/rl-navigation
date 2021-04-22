@@ -1,24 +1,32 @@
 import os
 
 import numpy as np
-import rosparam
 from geometry_msgs.msg import Pose, Quaternion
 
 X=0
 Y=1
 YAW=2
 
-def LoadYamlFileParams(path_config_file):
-    paramlist=rosparam.load_file(path_config_file)
-    
-    for params, ns in paramlist:
-        rosparam.upload_params(ns,params)
+def euler_angles_to_quaternion(roll=0, pitch=0, yaw=0):
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
 
-def _quart_to_euler_angles(x, y=None, z=None, w=None):
+    w = cr * cp * cy + sr * sp * sy
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+
+    return x, y, z, w
+
+def quaternion_to_euler_angles(x=0, y=0, z=0, w=0):
     if isinstance(x, list):
-        return _quart_to_euler_angles(x[0], x[1], x[2], x[3])
+        return quaternion_to_euler_angles(x[0], x[1], x[2], x[3])
     if isinstance(x, Quaternion):
-        return _quart_to_euler_angles(x.x, x.y, x.z, x.w)
+        return quaternion_to_euler_angles(x.x, x.y, x.z, x.w)
 
     sinr_cosp = 2 * (w * x + y * z)
     cosr_cosp = 1 - 2 * (x * x + y * y)
@@ -37,7 +45,7 @@ def _quart_to_euler_angles(x, y=None, z=None, w=None):
     return roll, pitch, yaw
 
 def pose_to_euler(pose: Pose):
-    _, _, yaw = _quart_to_euler_angles(pose.orientation)
+    _, _, yaw = quaternion_to_euler_angles(pose.orientation)
     yaw = np.mod(yaw, 2*np.pi)
     return [pose.position.x, pose.position.y, yaw]
 

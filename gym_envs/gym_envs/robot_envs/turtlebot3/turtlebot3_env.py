@@ -1,7 +1,6 @@
 import numpy
-import rospy
-import time
-from openai_ros import robot_gazebo_env
+import rclpy
+from openai_ros2 import RobotGazeboEnv, exceptions, service_utils
 from std_msgs.msg import Float64
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import Image
@@ -10,15 +9,13 @@ from sensor_msgs.msg import PointCloud2
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist, Pose
-from openai_ros.openai_ros_common import ROSLauncher
 from gazebo_msgs.msg import ModelState
 
-
-class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
+class TurtleBot3Env(RobotGazeboEnv):
     """Superclass for all CubeSingleDisk environments.
     """
 
-    def __init__(self, ros_ws_abspath):
+    def __init__(self, node, ros_ws_abspath):
         """
         Initializes a new TurtleBot3Env environment.
         TurtleBot3 doesnt use controller_manager, therefore we wont reset the
@@ -42,10 +39,6 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
 
         Args:
         """
-        rospy.logdebug("Start TurtleBot3Env INIT...")
-        # Variables that we give through the constructor.
-        # None in this case
-
         # Internal Vars
         # Doesnt have any accesibles
         self.controllers_list = ["imu"]
@@ -54,12 +47,17 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         self.robot_name_space = ""
 
         # We launch the init function of the Parent Class robot_gazebo_env.RobotGazeboEnv
-        super(TurtleBot3Env, self).__init__(controllers_list=self.controllers_list,
+        super(TurtleBot3Env, self).__init__(node=node,
+                                            controllers_list=self.controllers_list,
                                             robot_name_space=self.robot_name_space,
                                             reset_controls=False,
                                             start_init_physics_parameters=False)
 
 
+        # rospy.logdebug("Start TurtleBot3Env INIT...")
+        self._logger.debug("Start TurtleBot3Env INIT...")
+        # Variables that we give through the constructor.
+        # None in this case
 
 
         self.gazebo.unpauseSim()
@@ -67,18 +65,18 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         self._check_all_sensors_ready()
 
         # We Start all the ROS related Subscribers and publishers
-        rospy.Subscriber("/odom", Odometry, self._odom_callback)
-        rospy.Subscriber("/imu", Imu, self._imu_callback)
-        rospy.Subscriber("/scan", LaserScan, self._laser_scan_callback)
+        self.odo_sub = self.node.create_subscription(Odometry, "/odom", self._odom_callback, 1)
+        self.imu_sub = self.node.create_subscription(Imu, "/imu", self._imu_callback, 1)
+        self.scan_sub = self.node.create_subscription(LaserScan, "/scan", self._laser_scan_callback, 1)
 
-        self._cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-        self._set_model_state_pub = rospy.Publisher('gazebo/set_model_state', ModelState, queue_size=1)
+        self._cmd_vel_pub = self.node.create_publisher(Twist, '/cmd_vel', 1)
+        self._set_model_state_pub = self.node.create_publisher(ModelState, 'gazebo/set_model_state', 1)
 
         self._check_publishers_connection()
 
         self.gazebo.pauseSim()
 
-        rospy.logdebug("Finished TurtleBot3Env INIT...")
+        self._logger.debug("Finished TurtleBot3Env INIT...")
 
     # Methods needed by the RobotGazeboEnv
     # ----------------------------
@@ -95,51 +93,53 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
     # ----------------------------
 
     def _check_all_sensors_ready(self):
-        rospy.logdebug("START ALL SENSORS READY")
+        self._logger.debug("START ALL SENSORS READY")
         self._check_odom_ready()
         self._check_imu_ready()
         self._check_laser_scan_ready()
-        rospy.logdebug("ALL SENSORS READY")
+        self._logger.debug("ALL SENSORS READY")
 
     def _check_odom_ready(self):
         self.odom = None
-        rospy.logdebug("Waiting for /odom to be READY...")
-        while self.odom is None and not rospy.is_shutdown():
+        self._logger.debug("Waiting for /odom to be READY...")
+
+        _rate = self.node.create_rate(20)
+
+        while self.odom is None:
             try:
-                self.odom = rospy.wait_for_message("/odom", Odometry, timeout=5.0)
-                rospy.logdebug("Current /odom READY=>")
-
-            except:
-                rospy.logerr("Current /odom not ready yet, retrying for getting odom")
-
-        return self.odom
+                _rate.sleep()
+            except rclpy.exceptions.ROSInterruptException:
+                # This is to avoid error when world is rested, time when backwards.
+                pass
+        self._logger.debug("Waiting for /odom to be READY... READY!")
+        _rate.destroy()
 
 
     def _check_imu_ready(self):
         self.imu = None
-        rospy.logdebug("Waiting for /imu to be READY...")
-        while self.imu is None and not rospy.is_shutdown():
+        self._logger.debug("Waiting for /imu to be READY...")
+        _rate = self.node.create_rate(20)
+        while self.imu is None:
             try:
-                self.imu = rospy.wait_for_message("/imu", Imu, timeout=5.0)
-                rospy.logdebug("Current /imu READY=>")
-
-            except:
-                rospy.logerr("Current /imu not ready yet, retrying for getting imu")
-
-        return self.imu
-
+                _rate.sleep()
+            except rclpy.exceptions.ROSInterruptException:
+                # This is to avoid error when world is rested, time when backwards.
+                pass
+        self._logger.debug("Waiting for /imu to be READY... READY!")
+        _rate.destroy()
 
     def _check_laser_scan_ready(self):
         self.laser_scan = None
-        rospy.logdebug("Waiting for /scan to be READY...")
-        while self.laser_scan is None and not rospy.is_shutdown():
+        self._logger.debug("Waiting for /scan to be READY...")
+        _rate = self.node.create_rate(20)
+        while self.laser_scan is None:
             try:
-                self.laser_scan = rospy.wait_for_message("/scan", LaserScan, timeout=1.0)
-                rospy.logdebug("Current /scan READY=>")
-
-            except:
-                rospy.logerr("Current /scan not ready yet, retrying for getting laser_scan")
-        return self.laser_scan
+                _rate.sleep()
+            except rclpy.exceptions.ROSInterruptException:
+                # This is to avoid error when world is rested, time when backwards.
+                pass
+        self._logger.debug("Waiting for /scan to be READY... READY!")
+        _rate.destroy()
 
 
     def _odom_callback(self, data):
@@ -157,26 +157,26 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         Checks that all the publishers are working
         :return:
         """
-        rate = rospy.Rate(10)  # 10hz
-        while self._cmd_vel_pub.get_num_connections() == 0 and not rospy.is_shutdown():
-            rospy.logdebug("No susbribers to _cmd_vel_pub yet so we wait and try again")
+        rate = self.node.create_rate(10)  # 10hz
+        while self._cmd_vel_pub.get_subscription_count() == 0:
+            self._logger.debug("No susbribers to _cmd_vel_pub yet so we wait and try again")
             try:
                 rate.sleep()
-            except rospy.ROSInterruptException:
+            except rclpy.exceptions.ROSInterruptException:
                 # This is to avoid error when world is rested, time when backwards.
                 pass
-        rospy.logdebug("_cmd_vel_pub Publisher Connected")
+        self._logger.debug("_cmd_vel_pub Publisher Connected")
 
-        while self._set_model_state_pub.get_num_connections() == 0 and not rospy.is_shutdown():
-            rospy.logdebug("No susbribers to _set_model_state_pub yet so we wait and try again")
+        while self._set_model_state_pub.get_subscription_count() == 0:
+            self._logger.debug("No susbribers to _set_model_state_pub yet so we wait and try again")
             try:
                 rate.sleep()
-            except rospy.ROSInterruptException:
+            except rclpy.exceptions.ROSInterruptException:
                 # This is to avoid error when world is rested, time when backwards.
                 pass
-        rospy.logdebug("_set_model_state_pub Publisher Connected")
+        self._logger.debug("_set_model_state_pub Publisher Connected")
 
-        rospy.logdebug("All Publishers READY")
+        self._logger.debug("All Publishers READY")
 
     # Methods that the TrainingEnvironment will need to define here as virtual
     # because they will be used in RobotGazeboEnv GrandParentClass and defined in the
@@ -221,16 +221,16 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         :param angular_speed: Speed of the angular turning of the robot base frame
         :return:
         """
-        rate = rospy.Rate(move_freq)
+        rate = self.node.create_rate(move_freq)
         cmd_vel_value = Twist()
         cmd_vel_value.linear.x = linear_speed
         cmd_vel_value.angular.z = angular_speed
-        rospy.logdebug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
+        self._logger.debug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
         self._check_publishers_connection()
         self._cmd_vel_pub.publish(cmd_vel_value)
         try:
             rate.sleep()
-        except rospy.ROSInterruptException:
+        except rclpy.exceptions.ROSInterruptException:
             # This is to avoid error when world is rested, time when backwards.
             pass
 
@@ -240,7 +240,7 @@ class TurtleBot3Env(robot_gazebo_env.RobotGazeboEnv):
         model_state_msg.pose = pose
         model_state_msg.twist = twist
         model_state_msg.reference_frame = reference_frame
-        rospy.logdebug("TurtleBot3 ModelState Cmd>>" + str(model_state_msg))
+        self._logger.debug("TurtleBot3 ModelState Cmd>>" + str(model_state_msg))
         self._check_publishers_connection()
         self._set_model_state_pub.publish(model_state_msg)
 

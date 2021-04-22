@@ -15,6 +15,7 @@
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
   <!-- <depend>tf_conversions</depend> -->
+  <depend>tf2</depend>
   <depend>gazebo_ros</depend>
   <depend>turtlebot3_gazebo</depend>
   <depend>gazebo_plugins</depend>
@@ -43,7 +44,8 @@
   <!-- <depend>interactive_markers</depend> -->
   <depend>turtlebot3</depend>
   <depend>turtlebot3_msgs</depend>
-  <!-- <depend>turtlebot3_simulations</depend> -->
+  <depend>turtlebot3_simulations</depend>
+  <depend>gazebo_ros_pkgs</depend>
 
   <build_depend>openai_ros2</build_depend>
   <build_depend>std_msgs</build_depend>
@@ -54,10 +56,11 @@
   <exec_depend>gazebo</exec_depend>
   <exec_depend>openai_ros2</exec_depend>
   <exec_depend>openai_ros2_msgs</exec_depend>
+  <exec_depend>turtlebot3_description</exec_depend>
 
   <export>
     <!-- Other tools can request additional information be placed here -->
-    <gazebo_ros gazebo_model_path="${prefix}/models"/>
     <build_type>ament_python</build_type>
+    <gazebo_ros gazebo_model_path="${prefix}/models"/>
   </export>
 </package>

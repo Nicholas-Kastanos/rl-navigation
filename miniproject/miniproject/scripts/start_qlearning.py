@@ -1,42 +1,47 @@
 #!/usr/bin/env python
-
-import gym
-import numpy as np
 import time
-import qlearn
-from gym import wrappers
-# ROS packages required
-import rospy
-import rospkg
-from openai_ros.openai_ros_common import StartOpenAI_ROS_Environment
-import gym_envs
-from tqdm import tqdm
 from functools import reduce
 
+import gym
+import gym_envs
 import matplotlib.pyplot as plt
+import numpy as np
+import rospkg
+# ROS packages required
+import rclpy
+from gym import wrappers
+from tqdm import tqdm
 
-def _launch_custom_env(task_and_robot_environment_name: str):
-    rospy.logwarn("Env: {} will be imported".format(
+from .qlearn import QLearn
+
+from rclpy.logging import LoggingSeverity
+
+
+def _launch_custom_env(task_and_robot_environment_name: str, node: rclpy.node.Node):
+    node.get_logger().warning("Env: {} will be imported".format(
         task_and_robot_environment_name))
-    rospy.logwarn("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
-    env = gym.make(task_and_robot_environment_name)
+    node.get_logger().warning("Register of Task Env went OK, lets make the env..."+str(task_and_robot_environment_name))
+    env = gym.make(task_and_robot_environment_name, node=node)
     return env
 
-
-if __name__ == '__main__':
-
-    rospy.init_node('turtlebot3_world_qlearn', anonymous=True, log_level=rospy.WARN)
+def main():
+    # rospy.init_node('turtlebot3_world_qlearn', anonymous=True, log_level=rospy.WARN)
+    rclpy.init()
+    node = rclpy.create_node('turtlebot3_world_qlearn')
+    node.get_logger().set_level(LoggingSeverity.WARN)
 
     # Init OpenAI_ROS ENV
-    task_and_robot_environment_name = rospy.get_param(
-        '/turtlebot3/task_and_robot_environment_name')
+    # task_and_robot_environment_name = rospy.get_param(
+    #     '/turtlebot3/task_and_robot_environment_name')
+    task_and_robot_environment_name = node.declare_parameter(
+        'environment.task_and_robot_environment_name').value
     
     # env = StartOpenAI_ROS_Environment(task_and_robot_environment_name)
-    env = _launch_custom_env(task_and_robot_environment_name)
+    env = _launch_custom_env(task_and_robot_environment_name, node)
 
     # Create the Gym environment
-    rospy.loginfo("Gym environment done")
-    rospy.loginfo("Starting Learning")
+    node.get_logger().info("Gym environment done")
+    node.get_logger().info("Starting Learning")
 
     # Set the logging system
     # rospack = rospkg.RosPack()
@@ -52,28 +57,38 @@ if __name__ == '__main__':
     # Loads parameters from the ROS param server
     # Parameters are stored in a yaml file inside the config directory
     # They are loaded at runtime by the launch file
-    Alpha = rospy.get_param("/turtlebot3/alpha") # Learning Rate
-    Epsilon = rospy.get_param("/turtlebot3/epsilon") 
-    Gamma = rospy.get_param("/turtlebot3/gamma") # Discount Factor
-    epsilon_discount = rospy.get_param("/turtlebot3/epsilon_discount")
-    nepisodes = rospy.get_param("/turtlebot3/nepisodes")
-    nsteps = rospy.get_param("/turtlebot3/nsteps")
-    running_step = rospy.get_param("/turtlebot3/running_step")
+    Alpha = node.declare_parameter("qlearning.alpha").value # Learning Rate
+    assert isinstance(Alpha, float)
 
-    world_lim_x_max = rospy.get_param("/world/limits/x/max")
-    world_lim_x_min = rospy.get_param("/world/limits/x/min")
-    world_lim_y_max = rospy.get_param("/world/limits/y/max")
-    world_lim_y_min = rospy.get_param("/world/limits/y/min")
+    Epsilon = node.declare_parameter("qlearning.epsilon").value
+    assert isinstance(Epsilon, float)
 
-    obstacle_radius = rospy.get_param("/world/obstacle_radius")
-    obstacle_positions = rospy.get_param("/world/obstacle_positions")
+    Gamma = node.declare_parameter("qlearning.gamma").value # Discount Factor
+    assert isinstance(Gamma, float)
+
+    epsilon_discount = node.declare_parameter("qlearning.epsilon_discount").value
+    assert isinstance(epsilon_discount, float)
+
+    nepisodes = node.declare_parameter("qlearning.nepisodes").value
+    assert isinstance(nepisodes, int)
+
+    nsteps = node.declare_parameter("qlearning.nsteps").value
+    assert isinstance(nsteps, int)
+
+    # world_lim_x_max = node.declare_parameter("/world/limits/x/max").value
+    # world_lim_x_min = node.declare_parameter("/world/limits/x/min").value
+    # world_lim_y_max = node.declare_parameter("/world/limits/y/max").value
+    # world_lim_y_min = node.declare_parameter("/world/limits/y/min").value
+
+    # obstacle_radius = node.declare_parameter("/world/obstacle_radius").value
+    # obstacle_positions = node.declare_parameter("/world/obstacle_positions").value
 
     x = 0
     y = -1
     yaw = np.pi/2
 
     # Initialises the algorithm that we are going to use for learning
-    qlearn = qlearn.QLearn(actions=range(env.action_space.n),
+    qlearn = QLearn(actions=range(env.action_space.n),
                            alpha=Alpha, gamma=Gamma, epsilon=Epsilon)
     initial_epsilon = qlearn.epsilon
 
@@ -82,7 +97,7 @@ if __name__ == '__main__':
 
     # Starts the main training loop: the one about the episodes to do
     for ep in range(nepisodes):
-        rospy.logdebug("############### START EPISODE=>" + str(ep))
+        node.get_logger().debug("############### START EPISODE=>" + str(ep))
 
         env.set_goal(x, y, yaw)
 
@@ -103,14 +118,14 @@ if __name__ == '__main__':
         # env.render()
         # for each episode, we test the robot for nsteps
         for i in tqdm(range(nsteps)):
-            rospy.logdebug("############### Start Step=>" + str(i))
+            node.get_logger().debug("############### Start Step=>" + str(i))
             # Pick an action based on the current state
             action = qlearn.chooseAction(state)
-            rospy.logdebug("Next action is:%d", action)
+            node.get_logger().debug("Next action is:%d" % (action))
             # Execute the action in the environment and get feedback
             observation, reward, done, info = env.step(action)
 
-            rospy.logdebug(str(observation) + " " + str(reward))
+            node.get_logger().debug(str(observation) + " " + str(reward))
             cumulated_reward += reward
             if highest_reward < cumulated_reward:
                 highest_reward = cumulated_reward
@@ -118,37 +133,37 @@ if __name__ == '__main__':
             nextState = ''.join(map(str, observation))
 
             # Make the algorithm learn based on the results
-            rospy.logdebug("# state we were=>" + str(state))
-            rospy.logdebug("# action that we took=>" + str(action))
-            rospy.logdebug("# reward that action gave=>" + str(reward))
-            rospy.logdebug("# episode cumulated_reward=>" + str(cumulated_reward))
-            rospy.logdebug("# State in which we will start next step=>" + str(nextState))
+            node.get_logger().debug("# state we were=>" + str(state))
+            node.get_logger().debug("# action that we took=>" + str(action))
+            node.get_logger().debug("# reward that action gave=>" + str(reward))
+            node.get_logger().debug("# episode cumulated_reward=>" + str(cumulated_reward))
+            node.get_logger().debug("# State in which we will start next step=>" + str(nextState))
             qlearn.learn(state, action, reward, nextState)
 
             if not (done):
-                rospy.logdebug("NOT DONE")
+                node.get_logger().debug("NOT DONE")
                 state = nextState
                 if i == nsteps - 1:
-                    rospy.logdebug("RAN OUT OF TIME STEPS")
+                    node.get_logger().debug("RAN OUT OF TIME STEPS")
                     h_num_steps = np.append(h_num_steps, i + 1)
             else:
                 h_num_steps = np.append(h_num_steps, i + 1)     
-                rospy.logdebug("DONE")
+                node.get_logger().debug("DONE")
                 break
-            rospy.logdebug("############### END Step=>" + str(i)+"/"+str(nsteps))
+            node.get_logger().debug("############### END Step=>" + str(i)+"/"+str(nsteps))
         
         m, s = divmod(int(time.time() - start_time), 60)
         h, m = divmod(m, 60)
         h_reward = np.append(h_reward, cumulated_reward)
-        rospy.logerr(("EP: " + str(ep + 1) + " - [alpha: " + str(round(qlearn.alpha, 2)) + " - gamma: " + str(
+        node.get_logger().error(("EP: " + str(ep + 1) + " - [alpha: " + str(round(qlearn.alpha, 2)) + " - gamma: " + str(
             round(qlearn.gamma, 2)) + " - epsilon: " + str(round(qlearn.epsilon, 2)) + "] - Reward: " + str(
             cumulated_reward) + "     Time: %d:%02d:%02d" % (h, m, s)))
 
-    rospy.loginfo(("\n|" + str(nepisodes) + "|" + str(qlearn.alpha) + "|" + str(qlearn.gamma) + "|" + str(
+    node.get_logger().info(("\n|" + str(nepisodes) + "|" + str(qlearn.alpha) + "|" + str(qlearn.gamma) + "|" + str(
         initial_epsilon) + "*" + str(epsilon_discount) + "|" + str(highest_reward) + "| PICTURE |"))
 
     # print("Parameters: a="+str)
-    rospy.logwarn("Overall score: {:0.2f}".format(h_num_steps.mean()))
+    node.get_logger().warning("Overall score: {:0.2f}".format(h_num_steps.mean()))
     # rospy.logwarn("Best 100 score: {:0.2f}".format(reduce(lambda x, y: x + y, l[-100:]) / len(l[-100:])))
 
     plt.figure()
@@ -169,3 +184,7 @@ if __name__ == '__main__':
 
 
     env.close()
+
+
+if __name__ == '__main__':
+    main()

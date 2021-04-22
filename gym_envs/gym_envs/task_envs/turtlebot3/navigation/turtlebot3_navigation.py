@@ -1,56 +1,61 @@
-import rospy
-import numpy as np
-from gym import spaces
-from ....robot_envs import TurtleBot3Env
-from geometry_msgs.msg import Vector3
-from ...task_commons import LoadYamlFileParams, pose_to_euler, get_distance, get_relative_position, signed_yaw_diff
-from openai_ros.openai_ros_common import ROSLauncher
 import os
-from geometry_msgs.msg import Pose, Twist
-from tf.transformations import quaternion_from_euler
+
+import numpy as np
+import rclpy
+from geometry_msgs.msg import Pose, Twist, Vector3
+from gym import spaces
+from rcl_interfaces.msg import ParameterType, ParameterDescriptor
+
+from ....robot_envs import TurtleBot3Env
+from ...task_commons import (euler_angles_to_quaternion,
+                             get_distance, get_relative_position,
+                             pose_to_euler, signed_yaw_diff)
+
 
 class TurtleBot3NavigationEnv(TurtleBot3Env):
-    def __init__(self):
+    def __init__(self, node):
         """
         This Task Env is designed for having the TurtleBot3 in the turtlebot3 world
         closed room with columns.
         It will learn how to move around without crashing.
         """
+        # Load Params from the desired Yaml file
+        # yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'turtlebot3_navigation.yaml')
+        # LoadYamlFileParams(yaml_file)
+
         # This is the path where the simulation files, the Task and the Robot gits will be downloaded if not there
-        ros_ws_abspath = rospy.get_param("/turtlebot3/ros_ws_abspath", None)
+        ros_ws_abspath = node.declare_parameter("environment.ros_ws_abspath").value
+        assert isinstance(ros_ws_abspath, str)
+        
         assert ros_ws_abspath is not None, "You forgot to set ros_ws_abspath in your yaml file of your main RL script. Set ros_ws_abspath: \'YOUR/SIM_WS/PATH\'"
         assert os.path.exists(ros_ws_abspath), "The Simulation ROS Workspace path " + ros_ws_abspath + \
                                                " DOESNT exist, execute: mkdir -p " + ros_ws_abspath + \
                                                "/src;cd " + ros_ws_abspath + ";catkin_make"
 
-        # Load Params from the desired Yaml file
-        yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'turtlebot3_navigation.yaml')
-        LoadYamlFileParams(yaml_file)
-
-
         # Here we will add any init functions prior to starting the MyRobotEnv
-        super(TurtleBot3NavigationEnv, self).__init__(ros_ws_abspath)
+        super(TurtleBot3NavigationEnv, self).__init__(node, ros_ws_abspath)
+
 
         # Only variable needed to be set here
-        number_actions = rospy.get_param('/turtlebot3/n_actions')
+        number_actions = self.node.declare_parameter("qlearning.n_actions").value
+        assert isinstance(number_actions, int)
+
         self.action_space = spaces.Discrete(number_actions)
 
         # We set the reward range, which is not compulsory but here we do it.
         self.reward_range = (-np.inf, np.inf)
 
         # Actions and Observations
-        self.linear_forward_speed = rospy.get_param('/turtlebot3/linear_forward_speed')
-        self.linear_turn_speed = rospy.get_param('/turtlebot3/linear_turn_speed')
-        self.angular_speed = rospy.get_param('/turtlebot3/angular_speed')
-        self.init_linear_forward_speed = rospy.get_param('/turtlebot3/init_linear_forward_speed')
-        self.init_linear_turn_speed = rospy.get_param('/turtlebot3/init_linear_turn_speed')
+        self.linear_forward_speed = self.node.declare_parameter('turtlebot3.linear_forward_speed').value
+        self.linear_turn_speed = self.node.declare_parameter('turtlebot3.linear_turn_speed').value
+        self.angular_speed = self.node.declare_parameter('turtlebot3.angular_speed').value
+        self.init_linear_forward_speed = self.node.declare_parameter('turtlebot3.init_linear_forward_speed').value
+        self.init_linear_turn_speed = self.node.declare_parameter('turtlebot3.init_linear_turn_speed').value
 
-        self.new_ranges = rospy.get_param('/turtlebot3/new_ranges')
-        self.min_range = rospy.get_param('/turtlebot3/min_range')
-        self.max_laser_value = rospy.get_param('/turtlebot3/max_laser_value')
-        self.min_laser_value = rospy.get_param('/turtlebot3/min_laser_value')
-        self.max_linear_aceleration = rospy.get_param('/turtlebot3/max_linear_aceleration')
-
+        self.new_ranges = self.node.declare_parameter('turtlebot3.new_ranges').value
+        self.min_range = self.node.declare_parameter('turtlebot3.min_range').value
+        self.max_laser_value = self.node.declare_parameter('turtlebot3.max_laser_value').value
+        self.min_laser_value = self.node.declare_parameter('turtlebot3.min_laser_value').value
 
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
@@ -75,13 +80,13 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         # We only use two integers
         self.observation_space = spaces.Box(low, high)
-        rospy.logwarn("Num Laster Readings: " + str(self._num_laser_readings))
-        rospy.logwarn("ACTION SPACES TYPE===>"+str(self.action_space))
-        rospy.logwarn("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
+        self._logger.warning("Num Laster Readings: " + str(self._num_laser_readings))
+        self._logger.warning("ACTION SPACES TYPE===>"+str(self.action_space))
+        self._logger.warning("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
 
         # Rewards
-        self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
-        self.contact_reward = rospy.get_param("turtlebot3/rewards/contact")
+        self.step_reward = self.node.declare_parameter("qlearning.rewards.step").value
+        self.contact_reward = self.node.declare_parameter("qlearning.rewards.contact").value
 
         # Goal Info
         self.goal_distance_tolerance = 0.2
@@ -96,7 +101,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         pose = Pose()
         pose.position.x = x
         pose.position.y = y
-        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w  = quaternion_from_euler(0, 0, yaw)
+        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w  = euler_angles_to_quaternion(0, 0, yaw)
         self._set_model_state("turtlebot3_burger", pose=pose, twist=Twist())
 
 
@@ -126,7 +131,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         based on the action number given.
         :param action: The action integer that set s what movement to do next.
         """
-        rospy.logdebug("Start Set Action ==>"+str(action))
+        self._loggerdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
         if action == 0: #FORWARD
             linear_speed = self.linear_forward_speed
@@ -154,7 +159,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             self.last_action = "FORWARD_LEFT"
         self.move_base(linear_speed, angular_speed)
 
-        rospy.logdebug("END Set Action ==>"+str(action))
+        self._logger.debug("END Set Action ==>"+str(action))
 
     def _get_current_odom_pose(self):
         odom = self.get_odom()
@@ -170,7 +175,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         TurtleBot2Env API DOCS
         :return:
         """
-        rospy.logdebug("Start Get Observation ==>")
+        self._logger.debug("Start Get Observation ==>")
         # We get the laser scan data
         laser_scan = self.get_laser_scan()
 
@@ -181,8 +186,8 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         discretized_observations += get_relative_position(current_odom, self.goal).tolist()
         discretized_observations += [signed_yaw_diff(current_odom, self.goal)] # Yaw
 
-        rospy.logdebug("Observations==>"+str(discretized_observations))
-        rospy.logdebug("END Get Observation ==>")
+        self._logger.debug("Observations==>"+str(discretized_observations))
+        self._logger.debug("END Get Observation ==>")
 
         return self.quantise_obs(discretized_observations)
 
@@ -195,12 +200,12 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
     def _is_done(self, observations):
 
         if self._episode_done:
-            rospy.logerr("TurtleBot3 is already at the destination==>")
+            self._logger.error("TurtleBot3 is already at the destination==>")
         # else:
             # rospy.logwarn("TurtleBot3 is not at the destination==>")
 
         if self._is_at_goal():
-            rospy.logerr("TurtleBot3 reached the destination==>")
+            self._logger.error("TurtleBot3 reached the destination==>")
             self._episode_done = True
         
 
@@ -233,11 +238,11 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             reward = 0
 
 
-        rospy.logdebug("reward=" + str(reward))
+        self._logger.debug("reward=" + str(reward))
         self.cumulated_reward += reward
-        rospy.logdebug("Cumulated_reward=" + str(self.cumulated_reward))
+        self._logger.debug("Cumulated_reward=" + str(self.cumulated_reward))
         self.cumulated_steps += 1
-        rospy.logdebug("Cumulated_steps=" + str(self.cumulated_steps))
+        self._logger.debug("Cumulated_steps=" + str(self.cumulated_steps))
 
         return reward
 
@@ -253,9 +258,9 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         discretized_ranges = []
         mod = len(data.ranges)/new_ranges
 
-        rospy.logdebug("data=" + str(data))
-        rospy.logdebug("new_ranges=" + str(new_ranges))
-        rospy.logdebug("mod=" + str(mod))
+        self._logger.debug("data=" + str(data))
+        self._logger.debug("new_ranges=" + str(new_ranges))
+        self._logger.debug("mod=" + str(mod))
 
         for i, item in enumerate(data.ranges):
             if (i%mod==0):

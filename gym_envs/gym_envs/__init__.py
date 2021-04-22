@@ -1,4 +1,6 @@
 from gym.envs.registration import register
+from . import robot_envs
+from . import task_envs
 
 
 register(
