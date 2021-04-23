@@ -10,6 +10,13 @@
             <size>4.3 0.15 0.5</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <max_vel>0.0</max_vel>
+            </ode>
+          </contact>
+        </surface>
         <pose frame=''>0 0 0.25 0 -0 0</pose>
       </collision>
       <visual name='Wall_0_Visual'>
@@ -32,6 +39,13 @@
             <size>4.3 0.15 0.5</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <max_vel>0.0</max_vel>
+            </ode>
+          </contact>
+        </surface>
         <pose frame=''>0 0 0.25 0 -0 0</pose>
       </collision>
       <visual name='Wall_2_Visual'>
@@ -54,6 +68,13 @@
             <size>4.3 0.15 0.5</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <max_vel>0.0</max_vel>
+            </ode>
+          </contact>
+        </surface>
         <pose frame=''>0 0 0.25 0 -0 0</pose>
       </collision>
       <visual name='Wall_3_Visual'>
@@ -76,6 +97,13 @@
             <size>4.3 0.15 0.5</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <max_vel>0.0</max_vel>
+            </ode>
+          </contact>
+        </surface>
         <pose frame=''>0 0 0.25 0 -0 0</pose>
       </collision>
       <visual name='Wall_4_Visual'>

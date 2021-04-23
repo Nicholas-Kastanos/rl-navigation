@@ -1,21 +1,25 @@
+import threading
+
 import numpy
 import rclpy
-from openai_ros2 import RobotGazeboEnv, exceptions, service_utils
-from std_msgs.msg import Float64
-from sensor_msgs.msg import JointState
-from sensor_msgs.msg import Image
-from sensor_msgs.msg import LaserScan
-from sensor_msgs.msg import PointCloud2
-from sensor_msgs.msg import Imu
+from gazebo_msgs.msg import EntityState
+from gazebo_msgs.srv import SetEntityState
+from geometry_msgs.msg import Pose, Twist
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist, Pose
-from gazebo_msgs.msg import ModelState
+from openai_ros2 import RobotGazeboEnv, exceptions, service_utils
+from openai_ros2.rate_runner import WhileRateRunner, ForRateRunner
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.subscription import Subscription
+from sensor_msgs.msg import Image, Imu, JointState, LaserScan, PointCloud2
+from std_msgs.msg import Float64
+
 
 class TurtleBot3Env(RobotGazeboEnv):
     """Superclass for all CubeSingleDisk environments.
     """
 
-    def __init__(self, node, ros_ws_abspath):
+    def __init__(self, node: Node, ros_ws_abspath):
         """
         Initializes a new TurtleBot3Env environment.
         TurtleBot3 doesnt use controller_manager, therefore we wont reset the
@@ -39,6 +43,9 @@ class TurtleBot3Env(RobotGazeboEnv):
 
         Args:
         """
+
+        node.get_logger().debug("Start TurtleBot3Env INIT...")
+
         # Internal Vars
         # Doesnt have any accesibles
         self.controllers_list = ["imu"]
@@ -52,28 +59,25 @@ class TurtleBot3Env(RobotGazeboEnv):
                                             robot_name_space=self.robot_name_space,
                                             reset_controls=False,
                                             start_init_physics_parameters=False)
-
-
-        # rospy.logdebug("Start TurtleBot3Env INIT...")
-        self._logger.debug("Start TurtleBot3Env INIT...")
         # Variables that we give through the constructor.
         # None in this case
 
-
         self.gazebo.unpauseSim()
         #self.controllers_object.reset_controllers()
-        self._check_all_sensors_ready()
 
         # We Start all the ROS related Subscribers and publishers
-        self.odo_sub = self.node.create_subscription(Odometry, "/odom", self._odom_callback, 1)
+        self.odom_sub = self.node.create_subscription(Odometry, "/odom", self._odom_callback, 1)
         self.imu_sub = self.node.create_subscription(Imu, "/imu", self._imu_callback, 1)
         self.scan_sub = self.node.create_subscription(LaserScan, "/scan", self._laser_scan_callback, 1)
-
+        
+        self._check_all_sensors_ready() # Sensors must be checked after the callbacks are created
+    
         self._cmd_vel_pub = self.node.create_publisher(Twist, '/cmd_vel', 1)
-        self._set_model_state_pub = self.node.create_publisher(ModelState, 'gazebo/set_model_state', 1)
 
         self._check_publishers_connection()
 
+        self._set_entity_state_client = service_utils.create_service_client(self.node, SetEntityState, '/gazebo_ros_state/set_entity_state')
+        
         self.gazebo.pauseSim()
 
         self._logger.debug("Finished TurtleBot3Env INIT...")
@@ -97,49 +101,41 @@ class TurtleBot3Env(RobotGazeboEnv):
         self._check_odom_ready()
         self._check_imu_ready()
         self._check_laser_scan_ready()
-        self._logger.debug("ALL SENSORS READY")
+        self._logger.debug("FINISH ALL SENSORS READY")
 
     def _check_odom_ready(self):
         self.odom = None
         self._logger.debug("Waiting for /odom to be READY...")
-
-        _rate = self.node.create_rate(20)
-
-        while self.odom is None:
-            try:
-                _rate.sleep()
-            except rclpy.exceptions.ROSInterruptException:
-                # This is to avoid error when world is rested, time when backwards.
-                pass
+        WhileRateRunner(
+            self.node, 
+            frequency=20,
+            cond=lambda: self.odom is None,
+            func=lambda: self._logger.debug("Waiting for /odom to be READY... Not Yet")
+        )
         self._logger.debug("Waiting for /odom to be READY... READY!")
-        _rate.destroy()
 
 
     def _check_imu_ready(self):
         self.imu = None
         self._logger.debug("Waiting for /imu to be READY...")
-        _rate = self.node.create_rate(20)
-        while self.imu is None:
-            try:
-                _rate.sleep()
-            except rclpy.exceptions.ROSInterruptException:
-                # This is to avoid error when world is rested, time when backwards.
-                pass
+        WhileRateRunner(
+            self.node, 
+            frequency=20,
+            cond=lambda: self.imu is None,
+            func=lambda: self._logger.debug("Waiting for /imu to be READY... Not Yet")
+        )
         self._logger.debug("Waiting for /imu to be READY... READY!")
-        _rate.destroy()
 
     def _check_laser_scan_ready(self):
         self.laser_scan = None
         self._logger.debug("Waiting for /scan to be READY...")
-        _rate = self.node.create_rate(20)
-        while self.laser_scan is None:
-            try:
-                _rate.sleep()
-            except rclpy.exceptions.ROSInterruptException:
-                # This is to avoid error when world is rested, time when backwards.
-                pass
+        WhileRateRunner(
+            self.node, 
+            frequency=20,
+            cond=lambda: self.laser_scan is None,
+            func=lambda: self._logger.debug("Waiting for /scan to be READY... Not Yet")
+        )
         self._logger.debug("Waiting for /scan to be READY... READY!")
-        _rate.destroy()
 
 
     def _odom_callback(self, data):
@@ -151,31 +147,18 @@ class TurtleBot3Env(RobotGazeboEnv):
     def _laser_scan_callback(self, data):
         self.laser_scan = data
 
-
     def _check_publishers_connection(self):
         """
         Checks that all the publishers are working
         :return:
         """
-        rate = self.node.create_rate(10)  # 10hz
-        while self._cmd_vel_pub.get_subscription_count() == 0:
-            self._logger.debug("No susbribers to _cmd_vel_pub yet so we wait and try again")
-            try:
-                rate.sleep()
-            except rclpy.exceptions.ROSInterruptException:
-                # This is to avoid error when world is rested, time when backwards.
-                pass
+        WhileRateRunner(
+            self.node,
+            frequency=10,
+            func=lambda: self._logger.debug("No susbribers to _cmd_vel_pub yet so we wait and try again"),
+            cond=lambda: self._cmd_vel_pub.get_subscription_count() == 0
+        )
         self._logger.debug("_cmd_vel_pub Publisher Connected")
-
-        while self._set_model_state_pub.get_subscription_count() == 0:
-            self._logger.debug("No susbribers to _set_model_state_pub yet so we wait and try again")
-            try:
-                rate.sleep()
-            except rclpy.exceptions.ROSInterruptException:
-                # This is to avoid error when world is rested, time when backwards.
-                pass
-        self._logger.debug("_set_model_state_pub Publisher Connected")
-
         self._logger.debug("All Publishers READY")
 
     # Methods that the TrainingEnvironment will need to define here as virtual
@@ -213,6 +196,15 @@ class TurtleBot3Env(RobotGazeboEnv):
 
     # Methods that the TrainingEnvironment will need.
     # ----------------------------
+
+    def _send_move_msg(self, linear_speed, angular_speed):
+        cmd_vel_value = Twist()
+        cmd_vel_value.linear.x = linear_speed
+        cmd_vel_value.angular.z = angular_speed
+        self._logger.debug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
+        self._check_publishers_connection()
+        self._cmd_vel_pub.publish(cmd_vel_value)
+
     def move_base(self, linear_speed, angular_speed, move_freq=10):
         """
         It will move the base based on the linear and angular speeds given.
@@ -221,28 +213,21 @@ class TurtleBot3Env(RobotGazeboEnv):
         :param angular_speed: Speed of the angular turning of the robot base frame
         :return:
         """
-        rate = self.node.create_rate(move_freq)
-        cmd_vel_value = Twist()
-        cmd_vel_value.linear.x = linear_speed
-        cmd_vel_value.angular.z = angular_speed
-        self._logger.debug("TurtleBot3 Base Twist Cmd>>" + str(cmd_vel_value))
-        self._check_publishers_connection()
-        self._cmd_vel_pub.publish(cmd_vel_value)
-        try:
-            rate.sleep()
-        except rclpy.exceptions.ROSInterruptException:
-            # This is to avoid error when world is rested, time when backwards.
-            pass
+        ForRateRunner(
+            self.node,
+            frequency=move_freq,
+            func=self._send_move_msg(linear_speed, angular_speed),
+            num_loops=1
+        )
 
-    def _set_model_state(self, model_name: str, pose: Pose=None, twist:Twist=None, reference_frame:str="world"):
-        model_state_msg = ModelState()
-        model_state_msg.model_name = model_name
-        model_state_msg.pose = pose
-        model_state_msg.twist = twist
-        model_state_msg.reference_frame = reference_frame
-        self._logger.debug("TurtleBot3 ModelState Cmd>>" + str(model_state_msg))
-        self._check_publishers_connection()
-        self._set_model_state_pub.publish(model_state_msg)
+    def _set_entity_state(self, name: str, pose: Pose=None, twist:Twist=None, reference_frame:str="world"):
+        set_entity_state_req = SetEntityState.Request()
+        set_entity_state_req.state.name=name
+        set_entity_state_req.state.pose=pose
+        set_entity_state_req.state.twist=twist
+        set_entity_state_req.state.reference_frame=reference_frame
+        self._logger.debug("TurtleBot3 EntityState Cmd>>" + str(set_entity_state_req))
+        service_utils.call_and_wait_for_service_response(self.node, self._set_entity_state_client, set_entity_state_req)
 
     def get_odom(self):
         return self.odom

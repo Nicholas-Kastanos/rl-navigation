@@ -16,6 +16,8 @@ from .qlearn import QLearn
 
 from rclpy.logging import LoggingSeverity
 
+from gym_envs.task_envs import TurtleBot3NavigationEnv
+
 
 def _launch_custom_env(task_and_robot_environment_name: str, node: rclpy.node.Node):
     node.get_logger().warning("Env: {} will be imported".format(
@@ -25,19 +27,16 @@ def _launch_custom_env(task_and_robot_environment_name: str, node: rclpy.node.No
     return env
 
 def main():
-    # rospy.init_node('turtlebot3_world_qlearn', anonymous=True, log_level=rospy.WARN)
     rclpy.init()
     node = rclpy.create_node('turtlebot3_world_qlearn')
-    node.get_logger().set_level(LoggingSeverity.WARN)
+    node.get_logger().set_level(LoggingSeverity.INFO)
 
     # Init OpenAI_ROS ENV
-    # task_and_robot_environment_name = rospy.get_param(
-    #     '/turtlebot3/task_and_robot_environment_name')
     task_and_robot_environment_name = node.declare_parameter(
         'environment.task_and_robot_environment_name').value
     
     # env = StartOpenAI_ROS_Environment(task_and_robot_environment_name)
-    env = _launch_custom_env(task_and_robot_environment_name, node)
+    env: TurtleBot3NavigationEnv = _launch_custom_env(task_and_robot_environment_name, node)
 
     # Create the Gym environment
     node.get_logger().info("Gym environment done")
@@ -97,7 +96,7 @@ def main():
 
     # Starts the main training loop: the one about the episodes to do
     for ep in range(nepisodes):
-        node.get_logger().debug("############### START EPISODE=>" + str(ep))
+        node.get_logger().info("############### START EPISODE=>" + str(ep))
 
         env.set_goal(x, y, yaw)
 
@@ -110,15 +109,15 @@ def main():
         # Initialize the environment and get first state of the robot
         observation = env.reset()
         # Move robot to new position. Must be done here and not _set_init_pose becuase the world is reset after that method is called.
-        env.set_tb_state(0, 1, np.pi)
+        env.set_tb_state(0.0, 1.0, np.pi)
         observation = env.get_observation()
         state = ''.join(map(str, observation))
 
         # Show on screen the actual situation of the robot
         # env.render()
         # for each episode, we test the robot for nsteps
-        for i in tqdm(range(nsteps)):
-            node.get_logger().debug("############### Start Step=>" + str(i))
+        for i in range(nsteps):
+            node.get_logger().info("############### Start Step=>" + str(i))
             # Pick an action based on the current state
             action = qlearn.chooseAction(state)
             node.get_logger().debug("Next action is:%d" % (action))
@@ -144,11 +143,11 @@ def main():
                 node.get_logger().debug("NOT DONE")
                 state = nextState
                 if i == nsteps - 1:
-                    node.get_logger().debug("RAN OUT OF TIME STEPS")
+                    node.get_logger().info("RAN OUT OF TIME STEPS")
                     h_num_steps = np.append(h_num_steps, i + 1)
             else:
                 h_num_steps = np.append(h_num_steps, i + 1)     
-                node.get_logger().debug("DONE")
+                node.get_logger().info("DONE")
                 break
             node.get_logger().debug("############### END Step=>" + str(i)+"/"+str(nsteps))
         
@@ -162,9 +161,7 @@ def main():
     node.get_logger().info(("\n|" + str(nepisodes) + "|" + str(qlearn.alpha) + "|" + str(qlearn.gamma) + "|" + str(
         initial_epsilon) + "*" + str(epsilon_discount) + "|" + str(highest_reward) + "| PICTURE |"))
 
-    # print("Parameters: a="+str)
     node.get_logger().warning("Overall score: {:0.2f}".format(h_num_steps.mean()))
-    # rospy.logwarn("Best 100 score: {:0.2f}".format(reduce(lambda x, y: x + y, l[-100:]) / len(l[-100:])))
 
     plt.figure()
     plt.plot(range(nepisodes), h_num_steps)

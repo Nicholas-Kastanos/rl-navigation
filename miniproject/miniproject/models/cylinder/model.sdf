@@ -11,6 +11,13 @@
           </cylinder>
         </geometry>
       </collision>
+      <surface>
+            <contact>
+              <ode>
+                <max_vel>0.0</max_vel>
+              </ode>
+            </contact>
+          </surface>
       <visual name="visual">
         <pose frame=''>0 0 0.25 0 -0 0</pose>
         <geometry>

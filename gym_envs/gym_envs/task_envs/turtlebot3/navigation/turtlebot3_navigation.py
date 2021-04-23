@@ -19,9 +19,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         closed room with columns.
         It will learn how to move around without crashing.
         """
-        # Load Params from the desired Yaml file
-        # yaml_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'turtlebot3_navigation.yaml')
-        # LoadYamlFileParams(yaml_file)
+        node.get_logger().debug("Start TurtleBot3NavigationEnv INIT...")
 
         # This is the path where the simulation files, the Task and the Robot gits will be downloaded if not there
         ros_ws_abspath = node.declare_parameter("environment.ros_ws_abspath").value
@@ -33,8 +31,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
                                                "/src;cd " + ros_ws_abspath + ";catkin_make"
 
         # Here we will add any init functions prior to starting the MyRobotEnv
-        super(TurtleBot3NavigationEnv, self).__init__(node, ros_ws_abspath)
-
+        super().__init__(node, ros_ws_abspath)
 
         # Only variable needed to be set here
         number_actions = self.node.declare_parameter("qlearning.n_actions").value
@@ -94,15 +91,17 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         self.cumulated_steps = 0.0
 
+        node.get_logger().debug("Finished TurtleBot3NavigationEnv INIT...")
+
     def set_goal(self, x, y, yaw):
         self.goal = [x, y, np.mod(yaw, 2*np.pi)]
 
-    def set_tb_state(self, x, y, yaw):
+    def set_tb_state(self, x: float, y: float, yaw: float):
         pose = Pose()
         pose.position.x = x
         pose.position.y = y
         pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w  = euler_angles_to_quaternion(0, 0, yaw)
-        self._set_model_state("turtlebot3_burger", pose=pose, twist=Twist())
+        self._set_entity_state("turtlebot3_burger", pose=pose, twist=Twist())
 
 
     def _set_init_pose(self):
@@ -131,7 +130,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         based on the action number given.
         :param action: The action integer that set s what movement to do next.
         """
-        self._loggerdebug("Start Set Action ==>"+str(action))
+        self._logger.debug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
         if action == 0: #FORWARD
             linear_speed = self.linear_forward_speed
@@ -201,8 +200,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         if self._episode_done:
             self._logger.error("TurtleBot3 is already at the destination==>")
-        # else:
-            # rospy.logwarn("TurtleBot3 is not at the destination==>")
 
         if self._is_at_goal():
             self._logger.error("TurtleBot3 reached the destination==>")
@@ -270,13 +267,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
                     discretized_ranges.append(self.min_laser_value)
                 else:
                     discretized_ranges.append(int(item))
-
-                # if (self.min_range > item > 0):
-                #     rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-                #     self._episode_done = True
-                # else:
-                #     rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-
 
         return discretized_ranges
 
