@@ -59,9 +59,10 @@ def get_qlearn_params():
 def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
 
-    world_file_name = 'cylinders_world.world'
+    world_file_name = 'cylinders_world.model'
     world = os.path.join(get_package_share_directory('miniproject'),
                          'worlds', world_file_name)
+    
     pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
     
     parameters = [{'use_sim_time': use_sim_time}]
