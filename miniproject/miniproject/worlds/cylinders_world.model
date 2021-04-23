@@ -2,13 +2,72 @@
 <sdf version='1.6'>
   <world name='default'>
 
-    <include> <!-- A ground plane -->
-      <uri>model://ground_plane</uri>
-    </include>
+    <model name='ground_plane'>
+      <static>1</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>100</mu>
+                <mu2>50</mu2>
+              </ode>
+              <torsional>
+                <ode/>
+              </torsional>
+            </friction>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+          </surface>
+          <max_contacts>10</max_contacts>
+        </collision>
+        <visual name='visual'>
+          <cast_shadows>0</cast_shadows>
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    </model>
     
-    <include> <!-- A global light source -->
-      <uri>model://sun</uri>
-    </include>
+    <light name='sun' type='directional'>
+      <cast_shadows>1</cast_shadows>
+      <pose>0 0 10 0 -0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+      <spot>
+        <inner_angle>0</inner_angle>
+        <outer_angle>0</outer_angle>
+        <falloff>0</falloff>
+      </spot>
+    </light>
 
     <gui fullscreen='0'>
       <camera name='user_camera'>
@@ -30,7 +89,7 @@
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>1000.0</real_time_update_rate>
-      <max_contacts>20</max_contacts>
+      <max_contacts>10</max_contacts>
       <ode>
         <solver>
           <type>quick</type>
@@ -42,8 +101,8 @@
         <constraints>
           <cfm>0.00001</cfm>
           <erp>0.2</erp>
-          <!-- <contact_max_correcting_vel>0.1</contact_max_correcting_vel> -->
-          <contact_surface_layer>0.0001</contact_surface_layer>
+          <!-- <contact_max_correcting_vel>0.0</contact_max_correcting_vel> -->
+          <!-- <contact_surface_layer>0.0001</contact_surface_layer> -->
         </constraints>
       </ode>
     </physics>
@@ -102,6 +161,7 @@
             <contact>
               <ode>
                 <max_vel>0.0</max_vel>
+                <min_depth>0.001</min_depth>
               </ode>
             </contact>
           </surface>
@@ -137,6 +197,7 @@
             <contact>
               <ode>
                 <max_vel>0.0</max_vel>
+                <min_depth>0.001</min_depth>
               </ode>
             </contact>
           </surface>
@@ -172,6 +233,7 @@
             <contact>
               <ode>
                 <max_vel>0.0</max_vel>
+                <min_depth>0.001</min_depth>
               </ode>
             </contact>
           </surface>
@@ -203,6 +265,14 @@
               <length>0.5</length>
             </cylinder>
           </geometry>
+          <surface>
+            <contact>
+              <ode>
+                <max_vel>0.0</max_vel>
+                <min_depth>0.001</min_depth>
+              </ode>
+            </contact>
+          </surface>
         </collision>
         <visual name="visual">
           <pose frame=''>0 0 0.25 0 -0 0</pose>
@@ -212,13 +282,6 @@
               <length>0.5</length>
             </cylinder>
           </geometry>
-          <surface>
-            <contact>
-              <ode>
-                <max_vel>0.0</max_vel>
-              </ode>
-            </contact>
-          </surface>
           <material>
             <ambient>1 1 1 1</ambient>
           </material>

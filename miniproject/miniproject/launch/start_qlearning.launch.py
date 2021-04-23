@@ -15,8 +15,8 @@ def get_urdf(model_name: str):
     parameters = [
         {
             "turtlebot3" : {
-                "linear_forward_speed": 0.22,
-                "linear_turn_speed": 0.22,
+                "linear_forward_speed": 0.22/2,
+                "linear_turn_speed": 0.22/2,
                 "angular_speed": 0.25,
                 "init_linear_forward_speed": 0.0,
                 "init_linear_turn_speed": 0.0,
