@@ -9,6 +9,6 @@ turtlebot3: #namespace
     gamma: 0.7
     epsilon: 0.995
     epsilon_discount: 0.995 #0.999
-    nepisodes: 2000
-    nsteps: 200
+    nepisodes: 1000
+    nsteps: 100
     running_step: 0.06 # Time for each step

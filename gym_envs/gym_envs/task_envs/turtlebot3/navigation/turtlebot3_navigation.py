@@ -81,7 +81,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         # Rewards
         self.step_reward = rospy.get_param("/turtlebot3/rewards/step")
-        self.contact_reward = rospy.get_param("turtlebot3/rewards/contact")
+        self.contact_reward = rospy.get_param("turtlebot3/rewards/contact") # is multiplier
 
         # Goal Info
         self.goal_distance_tolerance = 0.2
@@ -223,12 +223,12 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
             #     reward = self.forwards_reward
             # else:
             #     reward = self.turn_reward
-            reward = self.step_reward # * get_distance(self._get_current_odom_pose(), self.goal)
+            reward = self.step_reward * get_distance(self._get_current_odom_pose(), self.goal)
 
             # Check if any laser readings are the minimum laser value  ie touching a wall
             mask = np.array(observations[:self._num_laser_readings]) == 0
             if np.any(mask):
-                reward += self.contact_reward
+                reward *= self.contact_reward
         else:
             reward = 0
 

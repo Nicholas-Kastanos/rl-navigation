@@ -68,8 +68,8 @@ if __name__ == '__main__':
     obstacle_radius = rospy.get_param("/world/obstacle_radius")
     obstacle_positions = rospy.get_param("/world/obstacle_positions")
 
-    x = 0
-    y = -1
+    x = 1
+    y = 0
     yaw = np.pi/2
 
     # Initialises the algorithm that we are going to use for learning
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         # Initialize the environment and get first state of the robot
         observation = env.reset()
         # Move robot to new position. Must be done here and not _set_init_pose becuase the world is reset after that method is called.
-        env.set_tb_state(0, 1, np.pi)
+        env.set_tb_state(-1, 0, 0)
         observation = env.get_observation()
         state = ''.join(map(str, observation))
 
