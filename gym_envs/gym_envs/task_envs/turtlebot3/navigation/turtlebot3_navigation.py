@@ -45,7 +45,7 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         self.init_linear_forward_speed = rospy.get_param('/turtlebot3/init_linear_forward_speed')
         self.init_linear_turn_speed = rospy.get_param('/turtlebot3/init_linear_turn_speed')
 
-        self.new_ranges = rospy.get_param('/turtlebot3/new_ranges')
+        self._num_laser_readings = rospy.get_param('/turtlebot3/num_laser_readings')
         self.min_range = rospy.get_param('/turtlebot3/min_range')
         self.max_laser_value = rospy.get_param('/turtlebot3/max_laser_value')
         self.min_laser_value = rospy.get_param('/turtlebot3/min_laser_value')
@@ -54,8 +54,8 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
 
         # We create two arrays based on the binary values that will be assigned
         # In the discretization method.
-        laser_scan = self.get_laser_scan()
-        self._num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
+        # laser_scan = self.get_laser_scan()
+        # self._num_laser_readings = int(len(laser_scan.ranges)/self.new_ranges)
 
         high = np.full((self._num_laser_readings), self.max_laser_value)
         low = np.full((self._num_laser_readings), self.min_laser_value)
@@ -173,18 +173,57 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         rospy.logdebug("Start Get Observation ==>")
         # We get the laser scan data
         laser_scan = self.get_laser_scan()
-
-        discretized_observations = self.discretize_scan_observation(    laser_scan,
-                                                                        self.new_ranges
-                                                                        )
+        discretized_observations = self.discretize_scan_observation(laser_scan)
+        # discretized_observations = (np.around(discretized_observations*2)/2).tolist()
         current_odom = self._get_current_odom_pose()
+        # rospy.logwarn(str(current_odom))
         discretized_observations += get_relative_position(current_odom, self.goal).tolist()
         discretized_observations += [signed_yaw_diff(current_odom, self.goal)] # Yaw
-
+        discretized_observations = np.around(discretized_observations, decimals=1).tolist()
+        rospy.logdebug("Observations Length==>"+str(len(discretized_observations)))       
         rospy.logdebug("Observations==>"+str(discretized_observations))
         rospy.logdebug("END Get Observation ==>")
 
-        return self.quantise_obs(discretized_observations)
+        return discretized_observations
+
+    
+    # Internal TaskEnv Methods
+    def discretize_scan_observation(self,data): 
+        """
+        Discards all the laser readings that are not multiple in index of new_ranges
+        value.
+        """
+        self._episode_done = False
+
+        discretized_ranges = []
+        self._num_laser_readings
+
+        mod = len(data.ranges)/(self._num_laser_readings)
+
+        rospy.logdebug("data=" + str(data))
+        rospy.logdebug("_num_laser_readings=" + str(self._num_laser_readings))
+        rospy.logdebug("mod=" + str(mod))
+
+        for i, item in enumerate(data.ranges):
+            if (i%int(mod)==0):
+                if item == float ('Inf') or np.isinf(item):
+                    discretized_ranges.append(self.max_laser_value)
+                elif np.isnan(item):
+                    discretized_ranges.append(self.min_laser_value)
+                else:
+                    discretized_ranges.append(int(item))
+
+                # if (self.min_range > item > 0):
+                #     rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
+                #     self._episode_done = True
+                # else:
+                #     rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
+
+
+        return discretized_ranges
+
+    # def quantise_obs(self, obs):
+    #     return np.around(obs, decimals=1)
 
     def _is_at_goal(self):
         distance = get_distance(self._get_current_odom_pose(), self.goal)
@@ -240,43 +279,6 @@ class TurtleBot3NavigationEnv(TurtleBot3Env):
         rospy.logdebug("Cumulated_steps=" + str(self.cumulated_steps))
 
         return reward
-
-
-    # Internal TaskEnv Methods
-    def discretize_scan_observation(self,data,new_ranges): 
-        """
-        Discards all the laser readings that are not multiple in index of new_ranges
-        value.
-        """
-        self._episode_done = False
-
-        discretized_ranges = []
-        mod = len(data.ranges)/new_ranges
-
-        rospy.logdebug("data=" + str(data))
-        rospy.logdebug("new_ranges=" + str(new_ranges))
-        rospy.logdebug("mod=" + str(mod))
-
-        for i, item in enumerate(data.ranges):
-            if (i%mod==0):
-                if item == float ('Inf') or np.isinf(item):
-                    discretized_ranges.append(self.max_laser_value)
-                elif np.isnan(item):
-                    discretized_ranges.append(self.min_laser_value)
-                else:
-                    discretized_ranges.append(int(item))
-
-                # if (self.min_range > item > 0):
-                #     rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-                #     self._episode_done = True
-                # else:
-                #     rospy.logdebug("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-
-
-        return discretized_ranges
-
-    def quantise_obs(self, obs):
-        return np.around(obs, decimals=1)
 
     def get_vector_magnitude(self, vector):
         """
